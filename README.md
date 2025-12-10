@@ -1,7 +1,3 @@
-# html-tools
-Single-file HTML tools that run entirely in the browser, designed for offline use on mobile and desktop.
-
-
 # HTML Tools
 
 Single-file HTML utilities that run entirely in the browser — no backend, no build step, and designed to work well on mobile and desktop.
