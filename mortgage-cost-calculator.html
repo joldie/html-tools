@@ -801,6 +801,12 @@
             return lines.join("\n");
         }
 
+        function updateRateInputVisibility() {
+            const isStep = rateModeInput.value === "step";
+            stepRateWrap.hidden = !isStep;
+            fixedRateWrap.hidden = isStep;
+        }
+
         function calculate() {
             statusMsg.textContent = "";
             const principal = Number(principalInput.value);
@@ -894,9 +900,7 @@
         }
 
         rateModeInput.addEventListener("change", () => {
-            const isStep = rateModeInput.value === "step";
-            stepRateWrap.hidden = !isStep;
-            fixedRateWrap.hidden = isStep;
+            updateRateInputVisibility();
             calculate();
         });
 
@@ -908,6 +912,7 @@
             });
         });
 
+        updateRateInputVisibility();
         calculate();
     </script>
 </body>
