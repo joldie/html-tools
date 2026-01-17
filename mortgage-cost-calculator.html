@@ -372,10 +372,10 @@
             <h2>Charts</h2>
             <div class="chart-grid">
                 <div class="chart-card">
-                    <canvas id="balanceChart"></canvas>
+                    <canvas id="splitChart"></canvas>
                 </div>
                 <div class="chart-card">
-                    <canvas id="splitChart"></canvas>
+                    <canvas id="balanceChart"></canvas>
                 </div>
                 <div class="chart-card">
                     <canvas id="interestChart"></canvas>
@@ -596,8 +596,15 @@
             return currencyFormatter.format(value || 0);
         }
 
+        function formatPaymentSummary(outputs) {
+            if (!outputs.paymentStats) return formatCurrency(outputs.currentPayment);
+            return `${formatCurrency(outputs.currentPayment)} ` +
+                `(avg ${formatCurrency(outputs.paymentStats.average)}, ` +
+                `range ${formatCurrency(outputs.paymentStats.min)}–${formatCurrency(outputs.paymentStats.max)})`;
+        }
+
         function updateSummary(outputs) {
-            summaryPayment.textContent = formatCurrency(outputs.currentPayment);
+            summaryPayment.textContent = formatPaymentSummary(outputs);
             summaryTotalPaid.textContent = formatCurrency(outputs.totalPaid);
             summaryInterest.textContent = formatCurrency(outputs.totalInterest);
             summaryPayoff.textContent = outputs.payoffDate ? formatMonthLabel(outputs.payoffDate) : "—";
@@ -626,6 +633,7 @@
             const balances = schedule.map((row) => row.balance);
             const interestParts = schedule.map((row) => row.interest);
             const principalParts = schedule.map((row) => row.principal + row.extra);
+            const totalPayments = schedule.map((row) => row.interest + row.principal + row.extra);
             const cumulativeInterest = [];
             let running = 0;
             schedule.forEach((row) => {
@@ -655,7 +663,8 @@
                 options: {
                     responsive: true,
                     plugins: {
-                        legend: { display: true }
+                        legend: { display: false },
+                        title: { display: true, text: "Remaining balance" }
                     },
                     scales: {
                         y: { ticks: { callback: (value) => `${Math.round(value / 1000)}k` } }
@@ -683,12 +692,23 @@
                             backgroundColor: "rgba(22, 163, 74, 0.2)",
                             fill: true,
                             tension: 0.25
+                        },
+                        {
+                            label: "Total payment (CHF)",
+                            data: totalPayments,
+                            borderColor: "#7c3aed",
+                            backgroundColor: "rgba(124, 58, 237, 0.1)",
+                            fill: false,
+                            tension: 0.25
                         }
                     ]
                 },
                 options: {
                     responsive: true,
-                    plugins: { legend: { display: true } },
+                    plugins: {
+                        legend: { display: true },
+                        title: { display: true, text: "Monthly payments" }
+                    },
                     scales: {
                         y: { ticks: { callback: (value) => `${Math.round(value / 1000)}k` } }
                     }
@@ -712,7 +732,10 @@
                 },
                 options: {
                     responsive: true,
-                    plugins: { legend: { display: true } },
+                    plugins: {
+                        legend: { display: false },
+                        title: { display: true, text: "Cumulative interest" }
+                    },
                     scales: {
                         y: { ticks: { callback: (value) => `${Math.round(value / 1000)}k` } }
                     }
@@ -746,6 +769,12 @@
             lines.push("");
             lines.push("Summary:");
             lines.push(`- Monthly payment (current): ${formatCurrency(outputs.currentPayment)}`);
+            if (outputs.paymentStats) {
+                lines.push(
+                    `- Monthly payment range: ${formatCurrency(outputs.paymentStats.min)}–${formatCurrency(outputs.paymentStats.max)} ` +
+                    `(avg ${formatCurrency(outputs.paymentStats.average)})`
+                );
+            }
             lines.push(`- Total paid: ${formatCurrency(outputs.totalPaid)}`);
             lines.push(`- Total interest: ${formatCurrency(outputs.totalInterest)}`);
             lines.push(`- Payoff date: ${outputs.payoffDate ? formatMonthLabel(outputs.payoffDate) : "—"}`);
@@ -832,11 +861,21 @@
                 return;
             }
 
+            const paymentValues = schedule.map((row) => row.payment);
+            const paymentStats = rateMode === "step" && paymentValues.length
+                ? {
+                    min: Math.min(...paymentValues),
+                    max: Math.max(...paymentValues),
+                    average: paymentValues.reduce((sum, value) => sum + value, 0) / paymentValues.length
+                }
+                : null;
+
             const outputs = {
                 schedule,
                 totalPaid,
                 totalInterest,
                 currentPayment: schedule[0].payment,
+                paymentStats,
                 payoffDate: schedule[schedule.length - 1].date
             };
 
