@@ -1,0 +1,876 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <title>Mortgage Cost Calculator</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <style>
+        :root {
+            color-scheme: light;
+            --bg: #f8fafc;
+            --card: #ffffff;
+            --text: #0f172a;
+            --muted: #64748b;
+            --accent: #2563eb;
+            --accent-soft: rgba(37, 99, 235, 0.1);
+            --border: #e2e8f0;
+        }
+
+        * {
+            box-sizing: border-box;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        }
+
+        body {
+            margin: 0;
+            background: var(--bg);
+            color: var(--text);
+        }
+
+        header {
+            padding: 1.5rem 1rem 1rem;
+            text-align: center;
+        }
+
+        header h1 {
+            margin: 0 0 0.4rem;
+            font-size: 1.6rem;
+        }
+
+        header p {
+            margin: 0;
+            color: var(--muted);
+            font-size: 0.95rem;
+        }
+
+        main {
+            padding: 0 1rem 2rem;
+            max-width: 1100px;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            gap: 1.25rem;
+        }
+
+        section {
+            background: var(--card);
+            border-radius: 1rem;
+            padding: 1.2rem;
+            border: 1px solid var(--border);
+            box-shadow: 0 14px 32px rgba(15, 23, 42, 0.08);
+        }
+
+        section h2 {
+            margin: 0 0 0.75rem;
+            font-size: 1.2rem;
+        }
+
+        .grid {
+            display: grid;
+            gap: 0.75rem;
+        }
+
+        .grid.two {
+            grid-template-columns: 1fr;
+        }
+
+        .grid.three {
+            grid-template-columns: 1fr;
+        }
+
+        @media (min-width: 720px) {
+            .grid.two {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+
+            .grid.three {
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+            }
+        }
+
+        label {
+            display: block;
+            font-size: 0.85rem;
+            color: var(--muted);
+            margin-bottom: 0.3rem;
+        }
+
+        input,
+        select,
+        textarea {
+            width: 100%;
+            padding: 0.65rem 0.75rem;
+            border-radius: 0.75rem;
+            border: 1px solid var(--border);
+            background: #fff;
+            font-size: 1rem;
+        }
+
+        input:focus,
+        select:focus,
+        textarea:focus {
+            outline: 2px solid var(--accent-soft);
+            border-color: var(--accent);
+        }
+
+        textarea {
+            min-height: 110px;
+            resize: vertical;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
+                "Courier New", monospace;
+            font-size: 0.85rem;
+        }
+
+        .hint {
+            margin-top: 0.3rem;
+            font-size: 0.75rem;
+            color: var(--muted);
+        }
+
+        .toggle-row {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.9rem;
+        }
+
+        .summary-grid {
+            display: grid;
+            gap: 0.75rem;
+            grid-template-columns: 1fr;
+        }
+
+        @media (min-width: 720px) {
+            .summary-grid {
+                grid-template-columns: repeat(4, minmax(0, 1fr));
+            }
+        }
+
+        .summary-card {
+            background: #f1f5f9;
+            border-radius: 0.9rem;
+            padding: 0.9rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+
+        .summary-card span {
+            font-size: 0.8rem;
+            color: var(--muted);
+        }
+
+        .summary-card strong {
+            font-size: 1.1rem;
+        }
+
+        .action-row {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        @media (min-width: 720px) {
+            .action-row {
+                flex-direction: row;
+                align-items: center;
+                justify-content: space-between;
+            }
+        }
+
+        button {
+            border: none;
+            border-radius: 999px;
+            padding: 0.7rem 1.6rem;
+            background: var(--accent);
+            color: #fff;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            box-shadow: 0 12px 26px rgba(37, 99, 235, 0.3);
+            transition: transform 0.1s ease, box-shadow 0.1s ease;
+        }
+
+        button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 16px 32px rgba(37, 99, 235, 0.35);
+        }
+
+        button.secondary {
+            background: transparent;
+            color: var(--accent);
+            border: 1px solid var(--accent);
+            box-shadow: none;
+        }
+
+        .status {
+            color: #dc2626;
+            font-size: 0.85rem;
+        }
+
+        details {
+            border: 1px solid var(--border);
+            border-radius: 0.8rem;
+            padding: 0.6rem 0.8rem;
+            background: #f8fafc;
+        }
+
+        details summary {
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        .table-wrap {
+            max-height: 420px;
+            overflow: auto;
+            border-radius: 0.8rem;
+            border: 1px solid var(--border);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+        }
+
+        th,
+        td {
+            padding: 0.6rem 0.5rem;
+            border-bottom: 1px solid var(--border);
+            text-align: right;
+            white-space: nowrap;
+        }
+
+        th:first-child,
+        td:first-child,
+        th:nth-child(2),
+        td:nth-child(2) {
+            text-align: left;
+        }
+
+        .chart-grid {
+            display: grid;
+            gap: 1rem;
+            grid-template-columns: 1fr;
+        }
+
+        @media (min-width: 900px) {
+            .chart-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+        }
+
+        .chart-card {
+            background: #f8fafc;
+            border-radius: 0.9rem;
+            padding: 0.75rem;
+            border: 1px solid var(--border);
+        }
+
+        .chart-card canvas {
+            width: 100% !important;
+            height: 220px !important;
+        }
+    </style>
+</head>
+
+<body>
+    <header>
+        <h1>Mortgage Cost Calculator</h1>
+        <p>Direct amortisation with monthly payments (CHF).</p>
+    </header>
+
+    <main>
+        <section>
+            <h2>Inputs</h2>
+            <div class="grid two">
+                <div>
+                    <label for="principal">Loan principal (CHF)</label>
+                    <input id="principal" type="number" inputmode="decimal" min="0" step="1000" value="750000" />
+                </div>
+                <div>
+                    <label for="termYears">Loan term (years)</label>
+                    <input id="termYears" type="number" inputmode="numeric" min="1" step="1" value="20" />
+                </div>
+                <div>
+                    <label for="startDate">Start date</label>
+                    <input id="startDate" type="month" />
+                </div>
+                <div>
+                    <label for="rateMode">Interest rate model</label>
+                    <select id="rateMode">
+                        <option value="fixed" selected>Fixed rate</option>
+                        <option value="step">Stepwise rate changes</option>
+                    </select>
+                </div>
+            </div>
+            <div class="grid two" id="fixedRateWrap">
+                <div>
+                    <label for="fixedRate">Fixed annual rate (%)</label>
+                    <input id="fixedRate" type="number" inputmode="decimal" min="0" step="0.01" value="2.0" />
+                </div>
+            </div>
+            <div id="stepRateWrap" hidden>
+                <label for="stepRates">Stepwise rate schedule</label>
+                <textarea id="stepRates" placeholder="YYYY-MM, rate%\n2026-01, 2.4\n2029-07, 2.8"></textarea>
+                <div class="hint">Enter rows with a start month and an annual rate. The latest row before each month is
+                    used.</div>
+            </div>
+            <details>
+                <summary>Optional: extra repayment</summary>
+                <div class="grid two" style="margin-top: 0.75rem;">
+                    <div>
+                        <label for="extraDate">Extra payment date</label>
+                        <input id="extraDate" type="month" />
+                    </div>
+                    <div>
+                        <label for="extraAmount">Extra payment amount (CHF)</label>
+                        <input id="extraAmount" type="number" inputmode="decimal" min="0" step="500" value="0" />
+                    </div>
+                    <div>
+                        <label for="extraBehavior">Extra payment behavior</label>
+                        <select id="extraBehavior">
+                            <option value="term" selected>Reduce remaining term (keep payment)</option>
+                            <option value="payment">Reduce future payment (keep term)</option>
+                        </select>
+                    </div>
+                </div>
+                <p class="hint">Extra payments are applied immediately to principal after the scheduled payment of the
+                    month.</p>
+            </details>
+            <div class="action-row" style="margin-top: 1rem;">
+                <button id="calculateBtn">Calculate</button>
+                <span class="status" id="statusMsg"></span>
+            </div>
+        </section>
+
+        <section>
+            <h2>Summary</h2>
+            <div class="summary-grid">
+                <div class="summary-card">
+                    <span>Monthly payment (current)</span>
+                    <strong id="summaryPayment">—</strong>
+                </div>
+                <div class="summary-card">
+                    <span>Total amount paid</span>
+                    <strong id="summaryTotalPaid">—</strong>
+                </div>
+                <div class="summary-card">
+                    <span>Total interest paid</span>
+                    <strong id="summaryInterest">—</strong>
+                </div>
+                <div class="summary-card">
+                    <span>Loan payoff date</span>
+                    <strong id="summaryPayoff">—</strong>
+                </div>
+            </div>
+        </section>
+
+        <section>
+            <h2>Charts</h2>
+            <div class="chart-grid">
+                <div class="chart-card">
+                    <canvas id="balanceChart"></canvas>
+                </div>
+                <div class="chart-card">
+                    <canvas id="splitChart"></canvas>
+                </div>
+                <div class="chart-card">
+                    <canvas id="interestChart"></canvas>
+                </div>
+            </div>
+        </section>
+
+        <section>
+            <h2>Detailed amortisation schedule</h2>
+            <details open>
+                <summary>Show schedule</summary>
+                <div class="table-wrap" style="margin-top: 0.75rem;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Month</th>
+                                <th>Payment</th>
+                                <th>Interest</th>
+                                <th>Principal</th>
+                                <th>Extra</th>
+                                <th>Balance</th>
+                            </tr>
+                        </thead>
+                        <tbody id="scheduleBody"></tbody>
+                    </table>
+                </div>
+            </details>
+        </section>
+
+        <section>
+            <h2>Report export</h2>
+            <p class="hint">Download a plain-text report of the mortgage plan.</p>
+            <button id="downloadBtn" class="secondary">Download report (.txt)</button>
+        </section>
+    </main>
+
+    <script>
+        const currencyFormatter = new Intl.NumberFormat("de-CH", {
+            style: "currency",
+            currency: "CHF",
+            maximumFractionDigits: 2
+        });
+        const dateFormatter = new Intl.DateTimeFormat("en-CH", {
+            year: "numeric",
+            month: "short"
+        });
+
+        const principalInput = document.getElementById("principal");
+        const termInput = document.getElementById("termYears");
+        const startDateInput = document.getElementById("startDate");
+        const rateModeInput = document.getElementById("rateMode");
+        const fixedRateInput = document.getElementById("fixedRate");
+        const stepRateWrap = document.getElementById("stepRateWrap");
+        const fixedRateWrap = document.getElementById("fixedRateWrap");
+        const stepRatesInput = document.getElementById("stepRates");
+        const extraDateInput = document.getElementById("extraDate");
+        const extraAmountInput = document.getElementById("extraAmount");
+        const extraBehaviorInput = document.getElementById("extraBehavior");
+        const statusMsg = document.getElementById("statusMsg");
+
+        const summaryPayment = document.getElementById("summaryPayment");
+        const summaryTotalPaid = document.getElementById("summaryTotalPaid");
+        const summaryInterest = document.getElementById("summaryInterest");
+        const summaryPayoff = document.getElementById("summaryPayoff");
+        const scheduleBody = document.getElementById("scheduleBody");
+
+        const calculateBtn = document.getElementById("calculateBtn");
+        const downloadBtn = document.getElementById("downloadBtn");
+
+        const charts = {
+            balance: null,
+            split: null,
+            interest: null
+        };
+
+        const today = new Date();
+        startDateInput.value = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
+        extraDateInput.value = startDateInput.value;
+
+        function parseMonthValue(value) {
+            if (!value) return null;
+            const [year, month] = value.split("-").map(Number);
+            if (!year || !month) return null;
+            return new Date(year, month - 1, 1);
+        }
+
+        function formatMonthLabel(date) {
+            return dateFormatter.format(date);
+        }
+
+        function addMonths(date, count) {
+            return new Date(date.getFullYear(), date.getMonth() + count, 1);
+        }
+
+        function parseStepRates(text) {
+            const rows = text
+                .split("\n")
+                .map((line) => line.trim())
+                .filter(Boolean);
+            const parsed = [];
+            rows.forEach((row) => {
+                const parts = row.split(/[,;\t]+/).map((part) => part.trim());
+                if (parts.length < 2) return;
+                const datePart = parts[0];
+                const ratePart = parts[1].replace("%", "");
+                const match = datePart.match(/^(\d{4})-(\d{2})$/) || datePart.match(/^(\d{2})\/(\d{4})$/);
+                if (!match) return;
+                let year;
+                let month;
+                if (match[1].length === 4) {
+                    year = Number(match[1]);
+                    month = Number(match[2]);
+                } else {
+                    month = Number(match[1]);
+                    year = Number(match[2]);
+                }
+                const rate = Number(ratePart);
+                if (!Number.isFinite(rate)) return;
+                parsed.push({
+                    date: new Date(year, month - 1, 1),
+                    rate: rate / 100
+                });
+            });
+            return parsed.sort((a, b) => a.date - b.date);
+        }
+
+        function monthlyPayment(principal, monthlyRate, months) {
+            if (months <= 0) return 0;
+            if (monthlyRate === 0) return principal / months;
+            const factor = Math.pow(1 + monthlyRate, months);
+            return principal * (monthlyRate * factor) / (factor - 1);
+        }
+
+        function generateSchedule(inputs) {
+            const {
+                principal,
+                termMonths,
+                startDate,
+                rateMode,
+                fixedRate,
+                stepRates,
+                extraPayment
+            } = inputs;
+            let balance = principal;
+            let remainingMonths = termMonths;
+            let currentDate = new Date(startDate);
+            let schedule = [];
+            let totalPaid = 0;
+            let totalInterest = 0;
+            let payment = 0;
+            let currentRate = 0;
+
+            const getRateForDate = (date) => {
+                if (rateMode === "fixed") return fixedRate;
+                if (!stepRates.length) return fixedRate;
+                let chosen = stepRates[0];
+                stepRates.forEach((entry) => {
+                    if (entry.date <= date) chosen = entry;
+                });
+                return chosen.rate;
+            };
+
+            const extraDate = extraPayment.amount > 0 ? extraPayment.date : null;
+
+            for (let monthIndex = 0; monthIndex < termMonths && balance > 0.01; monthIndex += 1) {
+                currentRate = getRateForDate(currentDate);
+                const monthlyRate = currentRate / 12;
+                if (monthIndex === 0 || (rateMode === "step" && currentRate !== schedule[schedule.length - 1]?.rate)) {
+                    payment = monthlyPayment(balance, monthlyRate, remainingMonths);
+                }
+
+                let interest = balance * monthlyRate;
+                let principalPaid = Math.min(payment - interest, balance);
+                if (principalPaid < 0) principalPaid = 0;
+                let actualPayment = principalPaid + interest;
+
+                let extra = 0;
+                if (extraDate && extraPayment.amount > 0) {
+                    const extraMatch = extraDate.getFullYear() === currentDate.getFullYear()
+                        && extraDate.getMonth() === currentDate.getMonth();
+                    if (extraMatch) {
+                        extra = Math.min(extraPayment.amount, balance - principalPaid);
+                        if (extra < 0) extra = 0;
+                    }
+                }
+
+                balance = balance - principalPaid - extra;
+                totalPaid += actualPayment + extra;
+                totalInterest += interest;
+
+                schedule.push({
+                    index: monthIndex + 1,
+                    date: new Date(currentDate),
+                    payment: actualPayment,
+                    interest,
+                    principal: principalPaid,
+                    extra,
+                    balance: Math.max(balance, 0),
+                    rate: currentRate
+                });
+
+                remainingMonths -= 1;
+
+                if (extra > 0 && extraPayment.behavior === "payment" && balance > 0.01) {
+                    payment = monthlyPayment(balance, monthlyRate, remainingMonths);
+                }
+
+                if (balance <= 0.01) break;
+                currentDate = addMonths(currentDate, 1);
+                if (remainingMonths <= 0) break;
+            }
+
+            return { schedule, totalPaid, totalInterest };
+        }
+
+        function formatCurrency(value) {
+            return currencyFormatter.format(value || 0);
+        }
+
+        function updateSummary(outputs) {
+            summaryPayment.textContent = formatCurrency(outputs.currentPayment);
+            summaryTotalPaid.textContent = formatCurrency(outputs.totalPaid);
+            summaryInterest.textContent = formatCurrency(outputs.totalInterest);
+            summaryPayoff.textContent = outputs.payoffDate ? formatMonthLabel(outputs.payoffDate) : "—";
+        }
+
+        function renderScheduleTable(schedule) {
+            scheduleBody.innerHTML = "";
+            const rows = schedule.map((row) => {
+                return `
+          <tr>
+            <td>${row.index}</td>
+            <td>${formatMonthLabel(row.date)}</td>
+            <td>${formatCurrency(row.payment)}</td>
+            <td>${formatCurrency(row.interest)}</td>
+            <td>${formatCurrency(row.principal)}</td>
+            <td>${formatCurrency(row.extra)}</td>
+            <td>${formatCurrency(row.balance)}</td>
+          </tr>
+        `;
+            });
+            scheduleBody.innerHTML = rows.join("");
+        }
+
+        function buildCharts(schedule) {
+            const labels = schedule.map((row) => formatMonthLabel(row.date));
+            const balances = schedule.map((row) => row.balance);
+            const interestParts = schedule.map((row) => row.interest);
+            const principalParts = schedule.map((row) => row.principal + row.extra);
+            const cumulativeInterest = [];
+            let running = 0;
+            schedule.forEach((row) => {
+                running += row.interest;
+                cumulativeInterest.push(running);
+            });
+
+            if (charts.balance) charts.balance.destroy();
+            if (charts.split) charts.split.destroy();
+            if (charts.interest) charts.interest.destroy();
+
+            charts.balance = new Chart(document.getElementById("balanceChart"), {
+                type: "line",
+                data: {
+                    labels,
+                    datasets: [
+                        {
+                            label: "Remaining balance (CHF)",
+                            data: balances,
+                            borderColor: "#2563eb",
+                            backgroundColor: "rgba(37, 99, 235, 0.2)",
+                            fill: true,
+                            tension: 0.2
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: { display: true }
+                    },
+                    scales: {
+                        y: { ticks: { callback: (value) => `${Math.round(value / 1000)}k` } }
+                    }
+                }
+            });
+
+            charts.split = new Chart(document.getElementById("splitChart"), {
+                type: "line",
+                data: {
+                    labels,
+                    datasets: [
+                        {
+                            label: "Interest (CHF)",
+                            data: interestParts,
+                            borderColor: "#f97316",
+                            backgroundColor: "rgba(249, 115, 22, 0.2)",
+                            fill: true,
+                            tension: 0.25
+                        },
+                        {
+                            label: "Principal (CHF)",
+                            data: principalParts,
+                            borderColor: "#16a34a",
+                            backgroundColor: "rgba(22, 163, 74, 0.2)",
+                            fill: true,
+                            tension: 0.25
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    plugins: { legend: { display: true } },
+                    scales: {
+                        y: { ticks: { callback: (value) => `${Math.round(value / 1000)}k` } }
+                    }
+                }
+            });
+
+            charts.interest = new Chart(document.getElementById("interestChart"), {
+                type: "line",
+                data: {
+                    labels,
+                    datasets: [
+                        {
+                            label: "Cumulative interest (CHF)",
+                            data: cumulativeInterest,
+                            borderColor: "#0ea5e9",
+                            backgroundColor: "rgba(14, 165, 233, 0.2)",
+                            fill: true,
+                            tension: 0.2
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    plugins: { legend: { display: true } },
+                    scales: {
+                        y: { ticks: { callback: (value) => `${Math.round(value / 1000)}k` } }
+                    }
+                }
+            });
+        }
+
+        function buildReport(inputs, outputs) {
+            const lines = [];
+            lines.push("Mortgage Cost Calculator Report");
+            lines.push("================================");
+            lines.push("");
+            lines.push("Inputs:");
+            lines.push(`- Principal: ${formatCurrency(inputs.principal)}`);
+            lines.push(`- Term: ${inputs.termMonths / 12} years (${inputs.termMonths} months)`);
+            lines.push(`- Start date: ${formatMonthLabel(inputs.startDate)}`);
+            if (inputs.rateMode === "fixed") {
+                lines.push(`- Fixed rate: ${(inputs.fixedRate * 100).toFixed(2)}%`);
+            } else {
+                lines.push("- Stepwise rates:");
+                inputs.stepRates.forEach((entry) => {
+                    lines.push(`  - ${formatMonthLabel(entry.date)}: ${(entry.rate * 100).toFixed(2)}%`);
+                });
+            }
+            if (inputs.extraPayment.amount > 0) {
+                lines.push(`- Extra payment: ${formatCurrency(inputs.extraPayment.amount)} in ${formatMonthLabel(inputs.extraPayment.date)}`);
+                lines.push(`- Extra behavior: ${inputs.extraPayment.behavior === "payment" ? "Reduce payment" : "Reduce term"}`);
+            } else {
+                lines.push("- Extra payment: none");
+            }
+            lines.push("");
+            lines.push("Summary:");
+            lines.push(`- Monthly payment (current): ${formatCurrency(outputs.currentPayment)}`);
+            lines.push(`- Total paid: ${formatCurrency(outputs.totalPaid)}`);
+            lines.push(`- Total interest: ${formatCurrency(outputs.totalInterest)}`);
+            lines.push(`- Payoff date: ${outputs.payoffDate ? formatMonthLabel(outputs.payoffDate) : "—"}`);
+            lines.push("");
+            lines.push("Key milestones:");
+            if (outputs.schedule.length > 0) {
+                const first = outputs.schedule[0];
+                const last = outputs.schedule[outputs.schedule.length - 1];
+                lines.push(`- First payment: ${formatMonthLabel(first.date)} | ${formatCurrency(first.payment)}`);
+                lines.push(`- Final payment: ${formatMonthLabel(last.date)} | ${formatCurrency(last.payment)}`);
+                lines.push(`- Total interest: ${formatCurrency(outputs.totalInterest)}`);
+            }
+            lines.push("");
+            lines.push("Condensed schedule (yearly):");
+            outputs.schedule.forEach((row, index) => {
+                if (index === 0 || (index + 1) % 12 === 0 || index === outputs.schedule.length - 1) {
+                    lines.push(
+                        `${row.index.toString().padStart(4, " ")} | ${formatMonthLabel(row.date)} | ` +
+                        `Payment ${formatCurrency(row.payment)} | Interest ${formatCurrency(row.interest)} | ` +
+                        `Principal ${formatCurrency(row.principal + row.extra)} | Balance ${formatCurrency(row.balance)}`
+                    );
+                }
+            });
+            return lines.join("\n");
+        }
+
+        function calculate() {
+            statusMsg.textContent = "";
+            const principal = Number(principalInput.value);
+            const termYears = Number(termInput.value);
+            const startDate = parseMonthValue(startDateInput.value);
+            const rateMode = rateModeInput.value;
+            const fixedRate = Number(fixedRateInput.value) / 100;
+
+            if (!principal || principal <= 0 || !termYears || termYears <= 0) {
+                statusMsg.textContent = "Please enter a valid principal and term.";
+                return;
+            }
+            if (!startDate) {
+                statusMsg.textContent = "Please select a valid start date.";
+                return;
+            }
+
+            let stepRates = [];
+            if (rateMode === "step") {
+                stepRates = parseStepRates(stepRatesInput.value);
+                if (!stepRates.length) {
+                    statusMsg.textContent = "Please add at least one stepwise rate entry.";
+                    return;
+                }
+                if (stepRates[0].date > startDate) {
+                    statusMsg.textContent = "The first stepwise rate must start on or before the loan start date.";
+                    return;
+                }
+            }
+
+            const termMonths = Math.round(termYears * 12);
+            const extraDate = parseMonthValue(extraDateInput.value);
+            const extraAmount = Number(extraAmountInput.value || 0);
+            const extraPayment = {
+                date: extraDate,
+                amount: extraAmount,
+                behavior: extraBehaviorInput.value
+            };
+
+            if (extraAmount > 0 && !extraDate) {
+                statusMsg.textContent = "Please set a date for the extra payment.";
+                return;
+            }
+
+            const inputs = {
+                principal,
+                termMonths,
+                startDate,
+                rateMode,
+                fixedRate: rateMode === "fixed" ? fixedRate : (stepRates[0]?.rate || fixedRate),
+                stepRates,
+                extraPayment
+            };
+
+            const { schedule, totalPaid, totalInterest } = generateSchedule(inputs);
+            if (!schedule.length) {
+                statusMsg.textContent = "Unable to compute schedule with these inputs.";
+                return;
+            }
+
+            const outputs = {
+                schedule,
+                totalPaid,
+                totalInterest,
+                currentPayment: schedule[0].payment,
+                payoffDate: schedule[schedule.length - 1].date
+            };
+
+            updateSummary(outputs);
+            renderScheduleTable(schedule);
+            buildCharts(schedule);
+            downloadBtn.onclick = () => {
+                const report = buildReport(inputs, outputs);
+                const blob = new Blob([report], { type: "text/plain" });
+                const link = document.createElement("a");
+                link.href = URL.createObjectURL(blob);
+                link.download = "mortgage-report.txt";
+                link.click();
+                URL.revokeObjectURL(link.href);
+            };
+        }
+
+        rateModeInput.addEventListener("change", () => {
+            const isStep = rateModeInput.value === "step";
+            stepRateWrap.hidden = !isStep;
+            fixedRateWrap.hidden = isStep;
+            calculate();
+        });
+
+        calculateBtn.addEventListener("click", calculate);
+        document.querySelectorAll("input, select, textarea").forEach((el) => {
+            el.addEventListener("change", () => {
+                if (el === rateModeInput) return;
+                calculate();
+            });
+        });
+
+        calculate();
+    </script>
+</body>
+
+</html>

@@ -8,3 +8,4 @@ Inspired by [Simon Willison](https://github.com/simonw/tools).
 
 - [json-to-yaml](json-to-yaml.html)
 - [html-to-markdown](html-to-markdown.html)
+- [mortgage-cost-calculator](mortgage-cost-calculator.html)
