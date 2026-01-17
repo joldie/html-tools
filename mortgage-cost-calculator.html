@@ -639,9 +639,9 @@
         function buildCharts(schedule) {
             const labels = schedule.map((row) => formatMonthLabel(row.date));
             const balances = schedule.map((row) => row.balance);
-            const interestParts = schedule.map((row) => row.interest);
-            const principalParts = schedule.map((row) => row.principal + row.extra);
-            const totalPayments = schedule.map((row) => row.interest + row.principal + row.extra);
+            const principalParts = schedule.map((row) => row.principal);
+            const interestParts = schedule.map((row) => row.interest + row.extra);
+            const totalPayments = schedule.map((row) => row.principal + row.interest + row.extra);
             const cumulativeInterest = [];
             let running = 0;
             schedule.forEach((row) => {
@@ -686,15 +686,7 @@
                     labels,
                     datasets: [
                         {
-                            label: "Interest (CHF)",
-                            data: interestParts,
-                            borderColor: "#f97316",
-                            backgroundColor: "rgba(249, 115, 22, 0.2)",
-                            fill: true,
-                            tension: 0.25
-                        },
-                        {
-                            label: "Principal (CHF)",
+                            label: "Principal",
                             data: principalParts,
                             borderColor: "#16a34a",
                             backgroundColor: "rgba(22, 163, 74, 0.2)",
@@ -702,7 +694,15 @@
                             tension: 0.25
                         },
                         {
-                            label: "Total payment (CHF)",
+                            label: "Interest",
+                            data: interestParts,
+                            borderColor: "#f97316",
+                            backgroundColor: "rgba(249, 115, 22, 0.2)",
+                            fill: true,
+                            tension: 0.25
+                        },
+                        {
+                            label: "Total",
                             data: totalPayments,
                             borderColor: "#7c3aed",
                             backgroundColor: "rgba(124, 58, 237, 0.1)",
