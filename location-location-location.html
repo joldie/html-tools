@@ -216,6 +216,7 @@
         </section>
     </main>
 
+    <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6.5.0/turf.min.js"></script>
     <script>
         const addressInput = document.getElementById("address");
         const searchButton = document.getElementById("search-button");
@@ -517,7 +518,7 @@
 
         async function updateNearbyGyms(origin) {
             const tbody = document.getElementById("nearby-body");
-            tbody.innerHTML = `<tr><td colspan="3" class="status">Checking nearby climbing gyms…</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="3" class="status">Checking nearby…</td></tr>`;
             try {
                 const results = [];
                 for (const gym of climbingGyms) {
@@ -562,8 +563,109 @@
                 tr.appendChild(infoTd);
 
                 tbody.appendChild(tr);
+                // Append single combined row for forest coverage (will be updated asynchronously)
+                const forestEmojiTd = document.createElement("td");
+                forestEmojiTd.textContent = "🌲";
+
+                const forestLabelTd = document.createElement("td");
+                forestLabelTd.textContent = "Forest (within 2 km radius)";
+                forestLabelTd.style.textAlign = "left";
+                forestLabelTd.style.paddingLeft = "8px";
+
+                const forestInfoTd = document.createElement("td");
+                forestInfoTd.className = "status";
+                forestInfoTd.dataset.forest = "combined";
+                forestInfoTd.textContent = "Loading forest data…";
+
+                const forestTr = document.createElement("tr");
+                forestTr.dataset.forestRow = "combined";
+                forestTr.appendChild(forestEmojiTd);
+                forestTr.appendChild(forestLabelTd);
+                forestTr.appendChild(forestInfoTd);
+
+                tbody.appendChild(forestTr);
             } catch (err) {
                 tbody.innerHTML = `<tr><td colspan="3" class="status">Unable to determine nearby gyms.</td></tr>`;
+            }
+        }
+
+        // --- Nearby forest coverage ---
+        async function updateNearbyForest(origin) {
+            const tbody = document.getElementById("nearby-body");
+            const combinedTd = tbody.querySelector('td[data-forest="combined"]');
+            if (!combinedTd) return;
+
+            combinedTd.textContent = "Loading forest data…";
+
+            if (typeof turf === "undefined") {
+                combinedTd.textContent = "Turf.js unavailable";
+                return;
+            }
+
+            const overpassQuery = `[out:json];(way["landuse"="forest"](around:2000,${origin.lat},${origin.lng});relation["landuse"="forest"](around:2000,${origin.lat},${origin.lng});way["natural"="wood"](around:2000,${origin.lat},${origin.lng});relation["natural"="wood"](around:2000,${origin.lat},${origin.lng}););out geom;`;
+
+            try {
+                const response = await fetch("https://overpass-api.de/api/interpreter", {
+                    method: "POST",
+                    body: new URLSearchParams({ data: overpassQuery }),
+                    headers: { "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8" },
+                });
+                if (!response.ok) throw new Error("Overpass query failed");
+                const data = await response.json();
+                const elements = data.elements || [];
+
+                const features = [];
+                elements.forEach((el) => {
+                    if (el.geometry && el.geometry.length) {
+                        const coords = el.geometry.map((p) => [p.lon, p.lat]);
+                        if (coords.length >= 3) {
+                            if (coords[0][0] !== coords[coords.length - 1][0] || coords[0][1] !== coords[coords.length - 1][1]) {
+                                coords.push(coords[0]);
+                            }
+                            try {
+                                features.push(turf.polygon([coords], { id: el.id, osmType: el.type }));
+                            } catch (e) {
+                                // ignore invalid geometry
+                            }
+                        } else if (coords.length) {
+                            try { features.push(turf.lineString(coords, { id: el.id, osmType: el.type })); } catch (e) { }
+                        }
+                    } else if (el.type === "relation" && el.members) {
+                        const rings = [];
+                        el.members.forEach((m) => {
+                            if (m.geometry && m.geometry.length) {
+                                const c = m.geometry.map((p) => [p.lon, p.lat]);
+                                if (c.length >= 3) {
+                                    if (c[0][0] !== c[c.length - 1][0] || c[0][1] !== c[c.length - 1][1]) c.push(c[0]);
+                                    rings.push(c);
+                                }
+                            }
+                        });
+                        if (rings.length) {
+                            try { features.push(turf.polygon(rings, { id: el.id, osmType: el.type })); } catch (e) { }
+                        }
+                    }
+                });
+
+                const circle = turf.circle([origin.lng, origin.lat], 2000, { steps: 64, units: "meters" });
+                const circleArea = turf.area(circle);
+
+                let totalArea = 0;
+                features.forEach((f) => {
+                    try {
+                        const inter = turf.intersect(f, circle);
+                        if (inter) totalArea += turf.area(inter);
+                    } catch (e) {
+                        // continue on errors
+                    }
+                });
+
+                const areaKm2 = totalArea / 1e6;
+                const percent = circleArea > 0 ? (totalArea / circleArea) * 100 : 0;
+
+                combinedTd.textContent = `${percent.toFixed(1)}%`;
+            } catch (err) {
+                combinedTd.textContent = "Unable to load forest data.";
             }
         }
 
@@ -586,6 +688,7 @@
                 searchStatus.textContent = query;
                 await updateTravelTimes(origin);
                 await updateNearbyGyms(origin);
+                await updateNearbyForest(origin);
             } catch (error) {
                 searchStatus.textContent = "No results found. Try a more specific address.";
             } finally {
