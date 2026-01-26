@@ -261,8 +261,12 @@
             return `${hours}h ${remaining}m`;
         }
 
-        function buildGoogleMapEmbed(query) {
+        function buildGoogleMapEmbed(query, lat, lng) {
             const zoom = 15;
+            if (typeof lat === "number" && typeof lng === "number") {
+                // Use precise coordinates to avoid Google interpreting the query as a directions request
+                return `https://www.google.com/maps?q=${lat},${lng}&z=${zoom}&output=embed`;
+            }
             return `https://www.google.com/maps?q=${encodeURIComponent(query)}&z=${zoom}&output=embed`;
         }
 
@@ -553,7 +557,7 @@
                 link.target = "_blank";
                 link.rel = "noopener";
                 link.href = buildDirectionsLink(`${origin.lat},${origin.lng}`, `${best.gym.lat},${best.gym.lng}`, "driving");
-                link.textContent = `${formatDistance(best.distance)} · ${formatDuration(best.duration)}`;
+                link.textContent = `${formatDistance(best.distance)} · ${formatDuration(best.duration)} 🚗`;
                 infoTd.appendChild(link);
                 tr.appendChild(infoTd);
 
@@ -575,7 +579,8 @@
             try {
                 const result = await geocode(query);
                 const origin = { lat: result.lat, lng: result.lng };
-                mapFrame.src = buildGoogleMapEmbed(result.label);
+                // Prefer embedding by coordinates to show the location pin only
+                mapFrame.src = buildGoogleMapEmbed(result.label, result.lat, result.lng);
                 shadeLink.href = buildShadeMapLink(result.lat, result.lng);
                 shadeLink.textContent = shadeLink.href;
                 searchStatus.textContent = query;
