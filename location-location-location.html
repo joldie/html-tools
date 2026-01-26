@@ -164,9 +164,9 @@
         </header>
 
         <section class="card">
+            <h3>Address</h3>
             <div class="row">
                 <div style="flex: 1; display: flex; flex-direction: column; gap: 8px;">
-                    <label for="address">Address</label>
                     <input id="address" type="text" placeholder="e.g. Freilagerstrasse 99, 8047 Zürich" />
                 </div>
                 <button id="search-button">Search</button>
@@ -175,16 +175,17 @@
         </section>
 
         <section class="card">
+            <h3>Map</h3>
             <iframe id="map-frame" class="map-frame" title="Google map" loading="lazy"></iframe>
             <div class="link-box">
-                <strong>ShadeMap link:</strong>
+                <strong>ShadeMap:</strong>
                 <div><a id="shade-link" href="https://shademap.app/" target="_blank"
                         rel="noopener">https://shademap.app/</a></div>
             </div>
         </section>
 
         <section class="card">
-            <h2>Travel times</h2>
+            <h3>Travel times</h3>
             <div class="table-wrapper">
                 <table>
                     <thead>
@@ -198,7 +199,7 @@
                     <tbody id="travel-times-body"></tbody>
                 </table>
             </div>
-            <p class="status">Estimates only &#8594; Click a link for live data</p>
+            <p class="status">Estimates only &#8594; Click the links for live data</p>
         </section>
     </main>
 
