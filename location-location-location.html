@@ -184,8 +184,7 @@
         </section>
 
         <section class="card">
-            <h2>Travel time estimates</h2>
-            <p class="status">Click the link to open Google Maps for accurate live data.</p>
+            <h2>Travel times</h2>
             <div class="table-wrapper">
                 <table>
                     <thead>
@@ -199,6 +198,7 @@
                     <tbody id="travel-times-body"></tbody>
                 </table>
             </div>
+            <p class="status">Estimates only &#8594; Click a link for live data</p>
         </section>
     </main>
 
@@ -489,7 +489,7 @@
                 mapFrame.src = buildGoogleMapEmbed(result.label);
                 shadeLink.href = buildShadeMapLink(result.lat, result.lng);
                 shadeLink.textContent = shadeLink.href;
-                searchStatus.textContent = result.label;
+                searchStatus.textContent = query;
                 await updateTravelTimes(origin);
             } catch (error) {
                 searchStatus.textContent = "No results found. Try a more specific address.";
