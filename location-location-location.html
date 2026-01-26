@@ -201,6 +201,19 @@
             </div>
             <p class="status">Estimates only &#8594; Click the links for live data</p>
         </section>
+
+        <section class="card">
+            <h3>Nearby</h3>
+            <div class="table-wrapper">
+                <table>
+                    <tbody id="nearby-body">
+                        <tr>
+                            <td colspan="3" class="status">Checking location…</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
     </main>
 
     <script>
@@ -475,6 +488,81 @@
             }
         }
 
+        // --- Nearby climbing gyms ---
+        const climbingGyms = [
+            { name: "Gaswerk Schlieren", address: "Kohlestrasse 12b, 8952 Schlieren" },
+            { name: "Gaswerk Milandia", address: "Im Grossriet, 8606 Greifensee" },
+            { name: "Gaswerk Wädenswil", address: "Rütihof 2, 8820 Wädenswil" },
+            { name: "Griffig Uster", address: "Hallenbadweg 2, 8610 Uster" },
+            { name: "6a plus Winterthur", address: "Klosterstrasse 17, 8406 Winterthur" },
+        ];
+
+        async function fetchOsrmRoute(origin, destination) {
+            const url = `https://router.project-osrm.org/route/v1/driving/${origin.lng},${origin.lat};${destination.lng},${destination.lat}?overview=false`;
+            const response = await fetch(url, { headers: { Accept: "application/json" } });
+            if (!response.ok) throw new Error("Routing failed");
+            const data = await response.json();
+            if (!data.routes || !data.routes.length) throw new Error("No route");
+            return { duration: data.routes[0].duration, distance: data.routes[0].distance };
+        }
+
+        function formatDistance(meters) {
+            if (!Number.isFinite(meters)) return "—";
+            return `${(meters / 1000).toFixed(1)} km`;
+        }
+
+        async function updateNearbyGyms(origin) {
+            const tbody = document.getElementById("nearby-body");
+            tbody.innerHTML = `<tr><td colspan="3" class="status">Checking nearby climbing gyms…</td></tr>`;
+            try {
+                const results = [];
+                for (const gym of climbingGyms) {
+                    await ensureDestinationCoordinates(gym);
+                    if (!gym.lat || !gym.lng) continue;
+                    try {
+                        const route = await fetchOsrmRoute(origin, gym);
+                        results.push({ gym, duration: route.duration, distance: route.distance });
+                    } catch (e) {
+                        // skip gym if routing fails
+                    }
+                }
+                if (!results.length) {
+                    tbody.innerHTML = `<tr><td colspan="3" class="status">No route information available.</td></tr>`;
+                    return;
+                }
+                results.sort((a, b) => a.duration - b.duration);
+
+                // Render only the closest gym: emoji | name | distance · time (with directions link)
+                const best = results[0];
+                tbody.innerHTML = "";
+                const tr = document.createElement("tr");
+
+                const emojiTd = document.createElement("td");
+                emojiTd.textContent = "🧗";
+                tr.appendChild(emojiTd);
+
+                const nameTd = document.createElement("td");
+                nameTd.textContent = best.gym.name;
+                nameTd.style.textAlign = "left";
+                nameTd.style.paddingLeft = "8px";
+                tr.appendChild(nameTd);
+
+                const infoTd = document.createElement("td");
+                const link = document.createElement("a");
+                link.className = "time-link";
+                link.target = "_blank";
+                link.rel = "noopener";
+                link.href = buildDirectionsLink(`${origin.lat},${origin.lng}`, `${best.gym.lat},${best.gym.lng}`, "driving");
+                link.textContent = `${formatDistance(best.distance)} · ${formatDuration(best.duration)}`;
+                infoTd.appendChild(link);
+                tr.appendChild(infoTd);
+
+                tbody.appendChild(tr);
+            } catch (err) {
+                tbody.innerHTML = `<tr><td colspan="3" class="status">Unable to determine nearby gyms.</td></tr>`;
+            }
+        }
+
         async function handleSearch() {
             const query = normalizeQuery(addressInput.value);
             if (!query) {
@@ -492,6 +580,7 @@
                 shadeLink.textContent = shadeLink.href;
                 searchStatus.textContent = query;
                 await updateTravelTimes(origin);
+                await updateNearbyGyms(origin);
             } catch (error) {
                 searchStatus.textContent = "No results found. Try a more specific address.";
             } finally {
