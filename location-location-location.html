@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Location, Location, Location</title>
+    <style>
+        :root {
+            color-scheme: light dark;
+            font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+        }
+
+        body {
+            margin: 0;
+            background: #f5f6f8;
+            color: #1f2a37;
+        }
+
+        main {
+            max-width: 720px;
+            margin: 0 auto;
+            padding: 20px 16px 40px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        h1 {
+            font-size: 1.6rem;
+            margin: 0;
+        }
+
+        p {
+            margin: 0;
+            line-height: 1.4;
+        }
+
+        .card {
+            background: #ffffff;
+            border-radius: 14px;
+            padding: 16px;
+            box-shadow: 0 6px 18px rgba(18, 24, 40, 0.08);
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        label {
+            font-weight: 600;
+        }
+
+        input[type="text"] {
+            flex: 1;
+            padding: 12px 14px;
+            border-radius: 10px;
+            border: 1px solid #d1d7e0;
+            font-size: 1rem;
+            background: #ffffff;
+            color: inherit;
+        }
+
+        button {
+            padding: 12px 16px;
+            border-radius: 10px;
+            border: none;
+            background: #1a73e8;
+            color: #ffffff;
+            font-weight: 600;
+            font-size: 1rem;
+            cursor: pointer;
+        }
+
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .row {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .map-frame {
+            width: 100%;
+            min-height: 260px;
+            border: none;
+            border-radius: 12px;
+            background: #e2e8f0;
+        }
+
+        .link-box a {
+            color: #1a73e8;
+            word-break: break-all;
+        }
+
+        .status {
+            font-size: 0.9rem;
+            color: #6b7280;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.95rem;
+            table-layout: fixed;
+        }
+
+        th,
+        td {
+            text-align: center;
+            padding: 8px 0;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        th {
+            font-weight: 600;
+            color: #4b5563;
+        }
+
+        th:first-child {
+            width: 60px;
+        }
+
+        th:nth-child(2),
+        th:nth-child(3),
+        th:nth-child(4) {
+            width: calc((100% - 60px) / 3);
+        }
+
+        .table-wrapper {
+            overflow-x: auto;
+        }
+
+        .time-link {
+            color: #1a73e8;
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        .time-link[aria-disabled="true"] {
+            color: #9ca3af;
+            pointer-events: none;
+        }
+
+        @media (min-width: 600px) {
+            .row {
+                flex-direction: row;
+                align-items: flex-end;
+            }
+
+            .row button {
+                flex: 0 0 150px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <main>
+        <header class="card">
+            <h1>Location, Location, Location</h1>
+        </header>
+
+        <section class="card">
+            <div class="row">
+                <div style="flex: 1; display: flex; flex-direction: column; gap: 8px;">
+                    <label for="address">Address</label>
+                    <input id="address" type="text" placeholder="e.g. Freilagerstrasse 99, 8047 Zürich" />
+                </div>
+                <button id="search-button">Search</button>
+            </div>
+            <p class="status" id="search-status">Enter an address to begin.</p>
+        </section>
+
+        <section class="card">
+            <iframe id="map-frame" class="map-frame" title="Google map" loading="lazy"></iframe>
+            <div class="link-box">
+                <strong>ShadeMap link:</strong>
+                <div><a id="shade-link" href="https://shademap.app/" target="_blank"
+                        rel="noopener">https://shademap.app/</a></div>
+            </div>
+        </section>
+
+        <section class="card">
+            <h2>Travel time estimates</h2>
+            <p class="status">Click the link to open Google Maps for accurate live data.</p>
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th></th>
+                            <th>Zurich HB</th>
+                            <th>USZ</th>
+                            <th>Sensirion</th>
+                        </tr>
+                    </thead>
+                    <tbody id="travel-times-body"></tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        const addressInput = document.getElementById("address");
+        const searchButton = document.getElementById("search-button");
+        const searchStatus = document.getElementById("search-status");
+        const mapFrame = document.getElementById("map-frame");
+        const shadeLink = document.getElementById("shade-link");
+        const travelTimesBody = document.getElementById("travel-times-body");
+
+        const destinations = [
+            {
+                id: "zh",
+                name: "Zürich HB",
+                address: "Zurich HB, Bahnhofplatz, 8001 Zürich",
+                lat: 47.378177,
+                lng: 8.540192,
+            },
+            {
+                id: "work1",
+                name: "USZ",
+                address: "University Hospital of Zürich, Rämistrasse 100, 8091 Zürich",
+                lat: 47.3766194,
+                lng: 8.5465972,
+            },
+            {
+                id: "work2",
+                name: "Sensirion",
+                address: "Sensirion AG, Laubisrütistrasse 50, 8712 Stäfa",
+                lat: 47.2379872,
+                lng: 8.7447918,
+            }
+        ];
+
+        function formatDuration(seconds) {
+            if (!Number.isFinite(seconds)) {
+                return "—";
+            }
+            const minutes = Math.round(seconds / 60);
+            if (minutes < 60) {
+                return `${minutes}m`;
+            }
+            const hours = Math.floor(minutes / 60);
+            const remaining = minutes % 60;
+            return `${hours}h ${remaining}m`;
+        }
+
+        function buildGoogleMapEmbed(query) {
+            const zoom = 15;
+            return `https://www.google.com/maps?q=${encodeURIComponent(query)}&z=${zoom}&output=embed`;
+        }
+
+        function buildShadeMapLink(lat, lng) {
+            return `https://shademap.app/@${lat},${lng},16z`;
+        }
+
+        function buildDirectionsLink(origin, destination, mode) {
+            const base = "https://www.google.com/maps/dir/?api=1";
+            const params = new URLSearchParams({
+                origin,
+                destination,
+                travelmode: mode,
+            });
+            return `${base}&${params.toString()}`;
+        }
+
+        function normalizeQuery(value) {
+            const trimmed = value.trim();
+            if (!trimmed) {
+                return "";
+            }
+            if (/switzerland/i.test(trimmed)) {
+                return trimmed;
+            }
+            return `${trimmed}, Switzerland`;
+        }
+
+        async function geocode(query) {
+            const response = await fetch(
+                `https://nominatim.openstreetmap.org/search?format=json&limit=1&addressdetails=1&q=${encodeURIComponent(query)}`,
+                { headers: { Accept: "application/json" } }
+            );
+            if (!response.ok) {
+                throw new Error("Geocoding failed");
+            }
+            const data = await response.json();
+            if (!data.length) {
+                throw new Error("No results");
+            }
+            return {
+                lat: Number.parseFloat(data[0].lat),
+                lng: Number.parseFloat(data[0].lon),
+                label: data[0].display_name,
+            };
+        }
+
+        async function fetchOsrmDuration(origin, destination, profile) {
+            const baseUrl = profile === "cycling"
+                ? "https://routing.openstreetmap.de/routed-bike/route/v1/driving"
+                : "https://routing.openstreetmap.de/routed-car/route/v1/driving";
+            const url = `${baseUrl}/${origin.lng},${origin.lat};${destination.lng},${destination.lat}?overview=false`;
+            const response = await fetch(url, { headers: { Accept: "application/json" } });
+            if (!response.ok) {
+                throw new Error("Routing failed");
+            }
+            const data = await response.json();
+            if (!data.routes || !data.routes.length) {
+                throw new Error("No route");
+            }
+            return data.routes[0].duration;
+        }
+
+        async function fetchTransitDuration(origin, destination) {
+            const params = new URLSearchParams({
+                from: `${origin.lat},${origin.lng}`,
+                to: `${destination.lat},${destination.lng}`,
+                limit: "1",
+            });
+            const response = await fetch(`https://transport.opendata.ch/v1/connections?${params.toString()}`, {
+                headers: { Accept: "application/json" },
+            });
+            if (!response.ok) {
+                throw new Error("Transit fetch failed");
+            }
+            const data = await response.json();
+            if (!data.connections || !data.connections.length) {
+                throw new Error("No transit results");
+            }
+            return data.connections[0].duration;
+        }
+
+        function parseTransitDuration(durationText) {
+            if (!durationText || typeof durationText !== "string") {
+                return Number.NaN;
+            }
+            const match = durationText.match(/(\d+)d(\d+):(\d+):(\d+)/);
+            if (!match) {
+                return Number.NaN;
+            }
+            const days = Number(match[1]);
+            const hours = Number(match[2]);
+            const minutes = Number(match[3]);
+            const seconds = Number(match[4]);
+            return (((days * 24 + hours) * 60 + minutes) * 60) + seconds;
+        }
+
+        const travelModes = [
+            { id: "transit", label: "🚌", mapMode: "transit" },
+            { id: "cycling", label: "🚲", mapMode: "bicycling" },
+            { id: "driving", label: "🚗", mapMode: "driving" },
+        ];
+
+        function renderTravelTable() {
+            travelTimesBody.innerHTML = "";
+            travelModes.forEach((mode) => {
+                const row = document.createElement("tr");
+                row.dataset.mode = mode.id;
+
+                const labelCell = document.createElement("td");
+                labelCell.textContent = mode.label;
+                row.appendChild(labelCell);
+
+                destinations.forEach((destination) => {
+                    const cell = document.createElement("td");
+                    cell.dataset.destinationId = destination.id;
+                    cell.dataset.mode = mode.id;
+
+                    const link = document.createElement("a");
+                    link.className = "time-link";
+                    link.href = "#";
+                    link.textContent = "—";
+                    link.setAttribute("aria-disabled", "true");
+
+                    cell.appendChild(link);
+                    row.appendChild(cell);
+                });
+
+                travelTimesBody.appendChild(row);
+            });
+        }
+
+        function updateCellLink(cell, origin, destination, mode) {
+            const link = cell.querySelector("a");
+            if (!link) {
+                return;
+            }
+            const originStr = `${origin.lat},${origin.lng}`;
+            const destinationStr = destination.address;
+            link.href = buildDirectionsLink(originStr, destinationStr, mode);
+            link.target = "_blank";
+            link.rel = "noopener";
+            link.removeAttribute("aria-disabled");
+        }
+
+        async function ensureDestinationCoordinates(destination) {
+            if (destination.lat && destination.lng) {
+                return destination;
+            }
+            if (!destination.address) {
+                return null;
+            }
+            try {
+                const geocoded = await geocode(normalizeQuery(destination.address));
+                destination.lat = geocoded.lat;
+                destination.lng = geocoded.lng;
+                return destination;
+            } catch (error) {
+                return null;
+            }
+        }
+
+        function setCellStatus(cell, text, isDisabled) {
+            const link = cell.querySelector("a");
+            if (!link) {
+                return;
+            }
+            link.textContent = text;
+            if (isDisabled) {
+                link.setAttribute("aria-disabled", "true");
+                link.removeAttribute("href");
+            }
+        }
+
+        async function updateTravelTimes(origin) {
+            const cells = Array.from(travelTimesBody.querySelectorAll("td[data-destination-id]"));
+            cells.forEach((cell) => {
+                setCellStatus(cell, "Loading…", true);
+            });
+
+            const resolvedDestinations = {};
+            for (const destination of destinations) {
+                resolvedDestinations[destination.id] = await ensureDestinationCoordinates(destination);
+            }
+
+            for (const destination of destinations) {
+                const resolved = resolvedDestinations[destination.id];
+                const destinationCells = cells.filter((cell) => cell.dataset.destinationId === destination.id);
+                if (!resolved) {
+                    destinationCells.forEach((cell) => {
+                        setCellStatus(cell, destination.address ? "Not found" : "Add address", true);
+                    });
+                    continue;
+                }
+
+                try {
+                    const [transitRaw, cyclingRaw, drivingRaw] = await Promise.all([
+                        fetchTransitDuration(origin, resolved),
+                        fetchOsrmDuration(origin, resolved, "cycling"),
+                        fetchOsrmDuration(origin, resolved, "driving"),
+                    ]);
+
+                    const transitSeconds = parseTransitDuration(transitRaw);
+                    const durations = {
+                        transit: formatDuration(transitSeconds),
+                        cycling: formatDuration(cyclingRaw),
+                        driving: formatDuration(drivingRaw),
+                    };
+
+                    destinationCells.forEach((cell) => {
+                        const mode = cell.dataset.mode;
+                        setCellStatus(cell, durations[mode] ?? "—", false);
+                        const mapMode = travelModes.find((item) => item.id === mode)?.mapMode;
+                        if (mapMode) {
+                            updateCellLink(cell, origin, resolved, mapMode);
+                        }
+                    });
+                } catch (error) {
+                    destinationCells.forEach((cell) => {
+                        setCellStatus(cell, "Unavailable", true);
+                    });
+                }
+            }
+        }
+
+        async function handleSearch() {
+            const query = normalizeQuery(addressInput.value);
+            if (!query) {
+                searchStatus.textContent = "";
+                return;
+            }
+            searchStatus.textContent = "Searching…";
+            searchButton.disabled = true;
+
+            try {
+                const result = await geocode(query);
+                const origin = { lat: result.lat, lng: result.lng };
+                mapFrame.src = buildGoogleMapEmbed(result.label);
+                shadeLink.href = buildShadeMapLink(result.lat, result.lng);
+                shadeLink.textContent = shadeLink.href;
+                searchStatus.textContent = result.label;
+                await updateTravelTimes(origin);
+            } catch (error) {
+                searchStatus.textContent = "No results found. Try a more specific address.";
+            } finally {
+                searchButton.disabled = false;
+            }
+        }
+
+        searchButton.addEventListener("click", () => {
+            handleSearch();
+        });
+
+        addressInput.addEventListener("keydown", (event) => {
+            if (event.key === "Enter") {
+                handleSearch();
+            }
+        });
+
+        renderTravelTable();
+
+        // Load default address on page load
+        addressInput.value = "Freilagerstrasse 99, 8047 Zürich";
+        handleSearch();
+    </script>
+</body>
+
+</html>
