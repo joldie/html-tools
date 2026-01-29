@@ -178,9 +178,13 @@
             <h3>Map</h3>
             <iframe id="map-frame" class="map-frame" title="Google map" loading="lazy"></iframe>
             <div class="link-box">
-                <strong>ShadeMap:</strong>
-                <div><a id="shade-link" href="https://shademap.app/" target="_blank"
-                        rel="noopener">https://shademap.app/</a></div>
+                <strong>Additional maps:</strong>
+                <ul>
+                    <li><a id="shade-link" href="https://shademap.app/" target="_blank" rel="noopener">ShadeMap</a></li>
+                    <li><a id="schweiz-link"
+                            href="https://schweizmobil.ch/de/map?season=summer&bgLayer=pk&layers=&detours=no&photos=no&logos=no&shooting=yes&resolution=4.60&E=2679220&N=1247867"
+                            target="_blank" rel="noopener">SchweizMobil</a></li>
+                </ul>
             </div>
         </section>
 
@@ -223,6 +227,7 @@
         const searchStatus = document.getElementById("search-status");
         const mapFrame = document.getElementById("map-frame");
         const shadeLink = document.getElementById("shade-link");
+        const schweizLink = document.getElementById("schweiz-link");
         const travelTimesBody = document.getElementById("travel-times-body");
 
         const destinations = [
@@ -273,6 +278,30 @@
 
         function buildShadeMapLink(lat, lng) {
             return `https://shademap.app/@${lat},${lng},16z`;
+        }
+
+        // Convert WGS84 lat/lng to Swiss grid (LV03) then to LV95 used by schweizmobil link
+        function wgs84ToSwissLV03(lat, lng) {
+            const latSec = lat * 3600;
+            const lngSec = lng * 3600;
+            const latAux = (latSec - 169028.66) / 10000.0;
+            const lngAux = (lngSec - 26782.5) / 10000.0;
+
+            const x = 200147.07 + 308807.95 * latAux + 3745.25 * Math.pow(lngAux, 2) + 76.63 * Math.pow(latAux, 2) - 194.56 * Math.pow(lngAux, 2) * latAux + 119.79 * Math.pow(latAux, 3);
+            const y = 600072.37 + 211455.93 * lngAux - 10938.51 * lngAux * latAux - 0.36 * lngAux * Math.pow(latAux, 2) - 44.54 * Math.pow(lngAux, 3);
+
+            return { E: Math.round(y), N: Math.round(x) };
+        }
+
+        function wgs84ToSwissLV95(lat, lng) {
+            const lv03 = wgs84ToSwissLV03(lat, lng);
+            return { E: lv03.E + 2000000, N: lv03.N + 1000000 };
+        }
+
+        function buildSchweizmobilLink(lat, lng) {
+            const coords = wgs84ToSwissLV95(lat, lng);
+            // Template from user; ensure E and N values are set to LV95 coordinates
+            return `https://schweizmobil.ch/de/map?season=summer&bgLayer=pk&layers=&detours=no&photos=no&logos=no&shooting=yes&resolution=4.60&E=${coords.E}&N=${coords.N}`;
         }
 
         function buildDirectionsLink(origin, destination, mode) {
@@ -684,7 +713,9 @@
                 // Prefer embedding by coordinates to show the location pin only
                 mapFrame.src = buildGoogleMapEmbed(result.label, result.lat, result.lng);
                 shadeLink.href = buildShadeMapLink(result.lat, result.lng);
-                shadeLink.textContent = shadeLink.href;
+                if (typeof schweizLink !== "undefined" && schweizLink) {
+                    schweizLink.href = buildSchweizmobilLink(result.lat, result.lng);
+                }
                 searchStatus.textContent = query;
                 await updateTravelTimes(origin);
                 await updateNearbyGyms(origin);
