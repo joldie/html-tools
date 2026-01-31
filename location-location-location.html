@@ -973,7 +973,12 @@
 
                 const percent = circleArea > 0 ? (totalArea / circleArea) * 100 : 0;
 
-                combinedTd.textContent = `${percent.toFixed(1)}% `;
+                let forestRating;
+                if (percent >= 20) forestRating = "High";
+                else if (percent >= 10) forestRating = "Moderate";
+                else forestRating = "Low";
+
+                combinedTd.textContent = `${forestRating} `;
                 combinedTd.classList.remove("status");
                 combinedTd.removeAttribute("data-loading");
 
@@ -986,7 +991,7 @@
 
                 const tooltipText = document.createElement("span");
                 tooltipText.className = "tooltip-text";
-                tooltipText.textContent = "Forest coverage within 3 km radius";
+                tooltipText.textContent = `${percent.toFixed(1)}% forest within 3 km`;
                 infoIcon.appendChild(tooltipText);
 
                 infoIcon.addEventListener("click", (e) => {
