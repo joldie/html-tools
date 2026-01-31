@@ -206,6 +206,21 @@
             opacity: 1;
         }
 
+        .rating-good {
+            color: #16a34a;
+            font-weight: 600;
+        }
+
+        .rating-moderate {
+            color: #d97706;
+            font-weight: 600;
+        }
+
+        .rating-bad {
+            color: #dc2626;
+            font-weight: 600;
+        }
+
         @media (min-width: 600px) {
             .row {
                 flex-direction: row;
@@ -838,13 +853,22 @@
 
             score = clamp(Math.round(score), 0, 100);
 
-            let rating;
-            if (score >= 75) rating = "High";
-            else if (score >= 55) rating = "Moderate-High";
-            else if (score >= 35) rating = "Moderate";
-            else rating = "Low";
+            let rating, ratingClass;
+            if (score >= 75) {
+                rating = "High";
+                ratingClass = "rating-bad";
+            } else if (score >= 55) {
+                rating = "Moderate-High";
+                ratingClass = "rating-bad";
+            } else if (score >= 35) {
+                rating = "Moderate";
+                ratingClass = "rating-moderate";
+            } else {
+                rating = "Low";
+                ratingClass = "rating-good";
+            }
 
-            return { rating, score, reasons };
+            return { rating, ratingClass, score, reasons };
         }
 
         async function updateFogProneness(origin) {
@@ -860,6 +884,7 @@
 
                 fogTd.textContent = `${result.rating} `;
                 fogTd.classList.remove("status");
+                fogTd.classList.add(result.ratingClass);
 
                 const infoIcon = document.createElement("span");
                 infoIcon.className = "info-tooltip";
@@ -973,13 +998,21 @@
 
                 const percent = circleArea > 0 ? (totalArea / circleArea) * 100 : 0;
 
-                let forestRating;
-                if (percent >= 20) forestRating = "High";
-                else if (percent >= 10) forestRating = "Moderate";
-                else forestRating = "Low";
+                let forestRating, forestRatingClass;
+                if (percent >= 20) {
+                    forestRating = "High";
+                    forestRatingClass = "rating-good";
+                } else if (percent >= 10) {
+                    forestRating = "Moderate";
+                    forestRatingClass = "rating-moderate";
+                } else {
+                    forestRating = "Low";
+                    forestRatingClass = "rating-bad";
+                }
 
                 combinedTd.textContent = `${forestRating} `;
                 combinedTd.classList.remove("status");
+                combinedTd.classList.add(forestRatingClass);
                 combinedTd.removeAttribute("data-loading");
 
                 const infoIcon = document.createElement("span");
