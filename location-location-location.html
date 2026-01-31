@@ -665,8 +665,223 @@
                 forestTr.appendChild(forestInfoTd);
 
                 tbody.appendChild(forestTr);
+
+                const fogEmojiTd = document.createElement("td");
+                fogEmojiTd.textContent = "🌫️";
+
+                const fogLabelTd = document.createElement("td");
+
+                const fogInfoTd = document.createElement("td");
+                fogInfoTd.dataset.fog = "value";
+                fogInfoTd.className = "status";
+                fogInfoTd.textContent = "Loading…";
+
+                const fogTr = document.createElement("tr");
+                fogTr.appendChild(fogEmojiTd);
+                fogTr.appendChild(fogLabelTd);
+                fogTr.appendChild(fogInfoTd);
+
+                tbody.appendChild(fogTr);
             } catch (err) {
                 tbody.innerHTML = `<tr><td colspan="3" class="status">Unable to determine nearby gyms.</td></tr>`;
+            }
+        }
+
+        // --- Nearby fog proneness ---
+        async function estimateFogProneness(lat, lng) {
+            if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+                throw new Error("Invalid coordinates");
+            }
+
+            const radiusMeters = 2000;
+            const ringPoints = 8;
+            const timeoutMs = 8000;
+
+            const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
+
+            const haversineMeters = (aLat, aLng, bLat, bLng) => {
+                const R = 6371000;
+                const toRad = (d) => (d * Math.PI) / 180;
+                const dLat = toRad(bLat - aLat);
+                const dLng = toRad(bLng - aLng);
+                const s1 = Math.sin(dLat / 2);
+                const s2 = Math.sin(dLng / 2);
+                const aa = s1 * s1 + Math.cos(toRad(aLat)) * Math.cos(toRad(bLat)) * s2 * s2;
+                return 2 * R * Math.asin(Math.sqrt(aa));
+            };
+
+            const destinationPoint = (latDeg, lngDeg, bearingDeg, distanceM) => {
+                const R = 6371000;
+                const toRad = (d) => (d * Math.PI) / 180;
+                const toDeg = (r) => (r * 180) / Math.PI;
+                const φ1 = toRad(latDeg);
+                const λ1 = toRad(lngDeg);
+                const θ = toRad(bearingDeg);
+                const δ = distanceM / R;
+                const sinφ2 = Math.sin(φ1) * Math.cos(δ) + Math.cos(φ1) * Math.sin(δ) * Math.cos(θ);
+                const φ2 = Math.asin(sinφ2);
+                const y = Math.sin(θ) * Math.sin(δ) * Math.cos(φ1);
+                const x = Math.cos(δ) - Math.sin(φ1) * sinφ2;
+                const λ2 = λ1 + Math.atan2(y, x);
+                return { lat: toDeg(φ2), lng: ((toDeg(λ2) + 540) % 360) - 180 };
+            };
+
+            // Major Swiss lakes (rough centroids)
+            const lakes = [
+                { name: "Lake Geneva", lat: 46.45, lng: 6.6 },
+                { name: "Lake Constance", lat: 47.6, lng: 9.4 },
+                { name: "Lake Neuchâtel", lat: 46.9, lng: 6.85 },
+                { name: "Lake Biel", lat: 47.1, lng: 7.2 },
+                { name: "Lake Thun", lat: 46.73, lng: 7.65 },
+                { name: "Lake Brienz", lat: 46.74, lng: 7.98 },
+                { name: "Lake Lucerne", lat: 46.98, lng: 8.35 },
+                { name: "Lake Zug", lat: 47.14, lng: 8.52 },
+                { name: "Lake Zurich", lat: 47.27, lng: 8.7 },
+                { name: "Lago Maggiore", lat: 46.15, lng: 8.65 },
+                { name: "Lago di Lugano", lat: 46.0, lng: 8.95 },
+            ];
+
+            let nearestLake = { name: null, distanceM: Infinity };
+            for (const lake of lakes) {
+                const d = haversineMeters(lat, lng, lake.lat, lake.lng);
+                if (d < nearestLake.distanceM) {
+                    nearestLake = { name: lake.name, distanceM: d };
+                }
+            }
+
+            // Build elevation sample points: center + ring
+            const ring = [];
+            for (let i = 0; i < ringPoints; i++) {
+                ring.push(destinationPoint(lat, lng, (360 / ringPoints) * i, radiusMeters));
+            }
+            const samplePoints = [{ lat, lng }, ...ring];
+            const lats = samplePoints.map((p) => p.lat.toFixed(6)).join(",");
+            const lngs = samplePoints.map((p) => p.lng.toFixed(6)).join(",");
+
+            let elevations = null;
+            const demUrl = `https://api.open-meteo.com/v1/elevation?latitude=${lats}&longitude=${lngs}`;
+            try {
+                const ctrl = new AbortController();
+                const timeout = setTimeout(() => ctrl.abort(), timeoutMs);
+                const response = await fetch(demUrl, { signal: ctrl.signal });
+                clearTimeout(timeout);
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                const data = await response.json();
+                if (!data || !Array.isArray(data.elevation)) throw new Error("Unexpected DEM response");
+                elevations = data.elevation.filter((e) => Number.isFinite(e));
+                if (elevations.length < samplePoints.length) throw new Error(`Missing elevations: got ${elevations.length}, need ${samplePoints.length}`);
+            } catch (e) {
+                console.warn("DEM fetch failed:", e.message);
+                elevations = null;
+            }
+
+            // Scoring (0-100)
+            let score = 0;
+            const reasons = [];
+
+            // Lake proximity (0-20 points)
+            const lakeKm = nearestLake.distanceM / 1000;
+            let lakePoints = 0;
+            if (lakeKm <= 3) lakePoints = 20;
+            else if (lakeKm <= 8) lakePoints = 14;
+            else if (lakeKm <= 15) lakePoints = 8;
+            else if (lakeKm <= 30) lakePoints = 3;
+            score += lakePoints;
+            if (lakePoints >= 8) {
+                reasons.push(`Near ${nearestLake.name}`);
+            }
+
+            if (elevations) {
+                const centerElev = elevations[0];
+                const ringElevs = elevations.slice(1);
+                const ringMean = ringElevs.reduce((a, b) => a + b, 0) / ringElevs.length;
+                const bowlDepthM = ringMean - centerElev; // positive = lower than surroundings
+                const reliefM = Math.max(...ringElevs) - Math.min(...ringElevs);
+
+                // Elevation band (0-26 points) - lower elevations more fog-prone in Swiss Plateau
+                let elevPoints = 0;
+                if (centerElev < 600) elevPoints = 26;
+                else if (centerElev < 900) elevPoints = 22;
+                else if (centerElev < 1400) elevPoints = 14;
+                else if (centerElev < 2000) elevPoints = 8;
+                else elevPoints = 4;
+                score += elevPoints;
+                reasons.push(`${Math.round(centerElev)} m elevation`);
+
+                // Bowl depth / cold-air pooling (−6 to 34 points)
+                let bowlPoints = 0;
+                if (bowlDepthM >= 40) bowlPoints = 34;
+                else if (bowlDepthM >= 25) bowlPoints = 28;
+                else if (bowlDepthM >= 15) bowlPoints = 20;
+                else if (bowlDepthM >= 8) bowlPoints = 12;
+                else if (bowlDepthM >= 3) bowlPoints = 6;
+                else if (bowlDepthM <= -10) bowlPoints = -6; // ridge/exposed
+                score += bowlPoints;
+                if (bowlPoints >= 20) {
+                    reasons.push("valley/basin terrain");
+                } else if (bowlPoints <= -4) {
+                    reasons.push("exposed/ridge terrain");
+                }
+
+                // Relief / terrain complexity (0-20 points)
+                let reliefPoints = 0;
+                if (reliefM >= 300) reliefPoints = 20;
+                else if (reliefM >= 180) reliefPoints = 14;
+                else if (reliefM >= 100) reliefPoints = 9;
+                else if (reliefM >= 60) reliefPoints = 5;
+                score += reliefPoints;
+            } else {
+                // Fallback without elevation data
+                score += 6;
+                reasons.push("elevation data unavailable");
+            }
+
+            score = clamp(Math.round(score), 0, 100);
+
+            let rating;
+            if (score >= 75) rating = "High";
+            else if (score >= 55) rating = "Moderate-High";
+            else if (score >= 35) rating = "Moderate";
+            else rating = "Low";
+
+            return { rating, score, reasons };
+        }
+
+        async function updateFogProneness(origin) {
+            const tbody = document.getElementById("nearby-body");
+            const fogTd = tbody.querySelector('td[data-fog="value"]');
+            if (!fogTd) return;
+
+            fogTd.textContent = "Loading…";
+
+            try {
+                const result = await estimateFogProneness(origin.lat, origin.lng);
+                const reasonText = result.reasons.length ? result.reasons.join(", ") : "—";
+
+                fogTd.textContent = `${result.rating} `;
+                fogTd.classList.remove("status");
+
+                const infoIcon = document.createElement("span");
+                infoIcon.className = "info-tooltip";
+                infoIcon.setAttribute("role", "button");
+                infoIcon.setAttribute("tabindex", "0");
+                infoIcon.setAttribute("aria-label", "More info");
+                infoIcon.textContent = "\u24D8";
+
+                const tooltipText = document.createElement("span");
+                tooltipText.className = "tooltip-text";
+                tooltipText.textContent = `Fog estimate: ${reasonText}`;
+                infoIcon.appendChild(tooltipText);
+
+                infoIcon.addEventListener("click", (e) => {
+                    e.stopPropagation();
+                    infoIcon.classList.toggle("active");
+                });
+
+                fogTd.appendChild(infoIcon);
+            } catch (err) {
+                console.warn("Fog estimate failed:", err.message);
+                fogTd.textContent = "Unavailable";
             }
         }
 
@@ -807,6 +1022,7 @@
                 await updateTravelTimes(origin);
                 await updateNearbyGyms(origin);
                 await updateNearbyForest(origin);
+                await updateFogProneness(origin);
             } catch (error) {
                 searchStatus.textContent = "No results found. Try a more specific address.";
             } finally {
