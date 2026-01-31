@@ -7,14 +7,19 @@
     <title>Location, Location, Location</title>
     <style>
         :root {
-            color-scheme: light dark;
+            --color-primary: #1a73e8;
+            --color-text: #1f2a37;
+            --color-text-muted: #6b7280;
+            --color-border: #d1d7e0;
+            --color-bg: #f5f6f8;
+            --color-card: #ffffff;
             font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
         }
 
         body {
             margin: 0;
-            background: #f5f6f8;
-            color: #1f2a37;
+            background: var(--color-bg);
+            color: var(--color-text);
         }
 
         main {
@@ -37,7 +42,7 @@
         }
 
         .card {
-            background: #ffffff;
+            background: var(--color-card);
             border-radius: 14px;
             padding: 16px;
             box-shadow: 0 6px 18px rgba(18, 24, 40, 0.08);
@@ -54,9 +59,9 @@
             flex: 1;
             padding: 12px 14px;
             border-radius: 10px;
-            border: 1px solid #d1d7e0;
+            border: 1px solid var(--color-border);
             font-size: 1rem;
-            background: #ffffff;
+            background: var(--color-card);
             color: inherit;
         }
 
@@ -64,7 +69,7 @@
             padding: 12px 16px;
             border-radius: 10px;
             border: none;
-            background: #1a73e8;
+            background: var(--color-primary);
             color: #ffffff;
             font-weight: 600;
             font-size: 1rem;
@@ -91,13 +96,13 @@
         }
 
         .link-box a {
-            color: #1a73e8;
+            color: var(--color-primary);
             word-break: break-all;
         }
 
         .status {
             font-size: 0.9rem;
-            color: #6b7280;
+            color: var(--color-text-muted);
         }
 
         table {
@@ -134,7 +139,7 @@
         }
 
         .time-link {
-            color: #1a73e8;
+            color: var(--color-primary);
             text-decoration: none;
             font-weight: 600;
         }
@@ -142,6 +147,63 @@
         .time-link[aria-disabled="true"] {
             color: #9ca3af;
             pointer-events: none;
+        }
+
+        .text-left {
+            text-align: left;
+            padding-left: 8px;
+        }
+
+        .sr-only {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border: 0;
+        }
+
+        .info-tooltip {
+            position: relative;
+            display: inline-block;
+            margin-left: 4px;
+            cursor: help;
+            color: var(--color-text-muted);
+            font-size: 0.85em;
+        }
+
+        .info-tooltip .tooltip-text {
+            visibility: hidden;
+            opacity: 0;
+            position: absolute;
+            bottom: 125%;
+            right: 0;
+            background: var(--color-text);
+            color: var(--color-card);
+            padding: 6px 10px;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            white-space: nowrap;
+            z-index: 10;
+            transition: opacity 0.2s;
+        }
+
+        .info-tooltip .tooltip-text::after {
+            content: "";
+            position: absolute;
+            top: 100%;
+            right: 8px;
+            border: 5px solid transparent;
+            border-top-color: var(--color-text);
+        }
+
+        .info-tooltip:hover .tooltip-text,
+        .info-tooltip.active .tooltip-text {
+            visibility: visible;
+            opacity: 1;
         }
 
         @media (min-width: 600px) {
@@ -164,18 +226,16 @@
         </header>
 
         <section class="card">
-            <h3>Address</h3>
+            <h2>Address</h2>
             <div class="row">
-                <div style="flex: 1; display: flex; flex-direction: column; gap: 8px;">
-                    <input id="address" type="text" placeholder="e.g. Freilagerstrasse 99, 8047 Zürich" />
-                </div>
-                <button id="search-button">Search</button>
+                <input id="address" type="text" placeholder="e.g. Freilagerstrasse 99, 8047 Zürich" />
+                <button id="search-button" aria-label="Search for address">Search</button>
             </div>
             <p class="status" id="search-status">Enter an address to begin.</p>
         </section>
 
         <section class="card">
-            <h3>Map</h3>
+            <h2>Map</h2>
             <iframe id="map-frame" class="map-frame" title="Google map" loading="lazy"></iframe>
             <div class="link-box">
                 <strong>Additional maps:</strong>
@@ -189,12 +249,12 @@
         </section>
 
         <section class="card">
-            <h3>Travel times</h3>
+            <h2>Travel times</h2>
             <div class="table-wrapper">
                 <table>
                     <thead>
                         <tr>
-                            <th></th>
+                            <th><span class="sr-only">Travel mode</span></th>
                             <th>Zurich HB</th>
                             <th>USZ</th>
                             <th>Sensirion</th>
@@ -207,7 +267,7 @@
         </section>
 
         <section class="card">
-            <h3>Nearby</h3>
+            <h2>Nearby</h2>
             <div class="table-wrapper">
                 <table>
                     <tbody id="nearby-body">
@@ -239,14 +299,14 @@
                 lng: 8.540192,
             },
             {
-                id: "work1",
+                id: "usz",
                 name: "USZ",
                 address: "University Hospital of Zürich, Rämistrasse 100, 8091 Zürich",
                 lat: 47.3766194,
                 lng: 8.5465972,
             },
             {
-                id: "work2",
+                id: "sensirion",
                 name: "Sensirion",
                 address: "Sensirion AG, Laubisrütistrasse 50, 8712 Stäfa",
                 lat: 47.2379872,
@@ -344,7 +404,7 @@
             };
         }
 
-        async function fetchOsrmDuration(origin, destination, profile) {
+        async function fetchOsrmRoute(origin, destination, profile = "driving") {
             const baseUrl = profile === "cycling"
                 ? "https://routing.openstreetmap.de/routed-bike/route/v1/driving"
                 : "https://routing.openstreetmap.de/routed-car/route/v1/driving";
@@ -357,7 +417,7 @@
             if (!data.routes || !data.routes.length) {
                 throw new Error("No route");
             }
-            return data.routes[0].duration;
+            return { duration: data.routes[0].duration, distance: data.routes[0].distance };
         }
 
         async function fetchTransitDuration(origin, destination) {
@@ -493,17 +553,17 @@
                 }
 
                 try {
-                    const [transitRaw, cyclingRaw, drivingRaw] = await Promise.all([
+                    const [transitRaw, cyclingRoute, drivingRoute] = await Promise.all([
                         fetchTransitDuration(origin, resolved),
-                        fetchOsrmDuration(origin, resolved, "cycling"),
-                        fetchOsrmDuration(origin, resolved, "driving"),
+                        fetchOsrmRoute(origin, resolved, "cycling"),
+                        fetchOsrmRoute(origin, resolved, "driving"),
                     ]);
 
                     const transitSeconds = parseTransitDuration(transitRaw);
                     const durations = {
                         transit: formatDuration(transitSeconds),
-                        cycling: formatDuration(cyclingRaw),
-                        driving: formatDuration(drivingRaw),
+                        cycling: formatDuration(cyclingRoute.duration),
+                        driving: formatDuration(drivingRoute.duration),
                     };
 
                     destinationCells.forEach((cell) => {
@@ -531,15 +591,6 @@
             { name: "6a plus Winterthur", address: "Klosterstrasse 17, 8406 Winterthur" },
         ];
 
-        async function fetchOsrmRoute(origin, destination) {
-            const url = `https://router.project-osrm.org/route/v1/driving/${origin.lng},${origin.lat};${destination.lng},${destination.lat}?overview=false`;
-            const response = await fetch(url, { headers: { Accept: "application/json" } });
-            if (!response.ok) throw new Error("Routing failed");
-            const data = await response.json();
-            if (!data.routes || !data.routes.length) throw new Error("No route");
-            return { duration: data.routes[0].duration, distance: data.routes[0].distance };
-        }
-
         function formatDistance(meters) {
             if (!Number.isFinite(meters)) return "—";
             return `${(meters / 1000).toFixed(1)} km`;
@@ -549,25 +600,29 @@
             const tbody = document.getElementById("nearby-body");
             tbody.innerHTML = `<tr><td colspan="3" class="status">Checking nearby…</td></tr>`;
             try {
-                const results = [];
-                for (const gym of climbingGyms) {
-                    await ensureDestinationCoordinates(gym);
-                    if (!gym.lat || !gym.lng) continue;
+                // Geocode all gyms in parallel
+                await Promise.all(climbingGyms.map((gym) => ensureDestinationCoordinates(gym)));
+
+                // Fetch routes in parallel for gyms with valid coordinates
+                const validGyms = climbingGyms.filter((gym) => gym.lat && gym.lng);
+                const routePromises = validGyms.map(async (gym) => {
                     try {
                         const route = await fetchOsrmRoute(origin, gym);
-                        results.push({ gym, duration: route.duration, distance: route.distance });
+                        return { gym, duration: route.duration, distance: route.distance };
                     } catch (e) {
-                        // skip gym if routing fails
+                        console.warn(`Routing failed for ${gym.name}:`, e.message);
+                        return null;
                     }
-                }
+                });
+
+                const results = (await Promise.all(routePromises)).filter(Boolean);
                 if (!results.length) {
                     tbody.innerHTML = `<tr><td colspan="3" class="status">No route information available.</td></tr>`;
                     return;
                 }
                 results.sort((a, b) => a.duration - b.duration);
 
-                // Render only the closest gym: emoji | name | distance · time (with directions link)
-                const best = results[0];
+                const closestGym = results[0];
                 tbody.innerHTML = "";
                 const tr = document.createElement("tr");
 
@@ -576,9 +631,8 @@
                 tr.appendChild(emojiTd);
 
                 const nameTd = document.createElement("td");
-                nameTd.textContent = best.gym.name;
-                nameTd.style.textAlign = "left";
-                nameTd.style.paddingLeft = "8px";
+                nameTd.textContent = closestGym.gym.name;
+                nameTd.className = "text-left";
                 tr.appendChild(nameTd);
 
                 const infoTd = document.createElement("td");
@@ -586,25 +640,23 @@
                 link.className = "time-link";
                 link.target = "_blank";
                 link.rel = "noopener";
-                link.href = buildDirectionsLink(`${origin.lat},${origin.lng}`, `${best.gym.lat},${best.gym.lng}`, "driving");
-                link.textContent = `${formatDistance(best.distance)} · ${formatDuration(best.duration)} 🚗`;
+                link.href = buildDirectionsLink(`${origin.lat},${origin.lng}`, `${closestGym.gym.lat},${closestGym.gym.lng}`, "driving");
+                link.textContent = `${formatDistance(closestGym.distance)} · ${formatDuration(closestGym.duration)} 🚗`;
                 infoTd.appendChild(link);
                 tr.appendChild(infoTd);
 
                 tbody.appendChild(tr);
-                // Append single combined row for forest coverage (will be updated asynchronously)
+
                 const forestEmojiTd = document.createElement("td");
                 forestEmojiTd.textContent = "🌲";
 
                 const forestLabelTd = document.createElement("td");
-                forestLabelTd.textContent = "Forest (within 3 km radius)";
-                forestLabelTd.style.textAlign = "left";
-                forestLabelTd.style.paddingLeft = "8px";
 
                 const forestInfoTd = document.createElement("td");
-                forestInfoTd.className = "status";
                 forestInfoTd.dataset.forest = "combined";
-                forestInfoTd.textContent = "Loading forest data…";
+                forestInfoTd.dataset.loading = "true";
+                forestInfoTd.className = "status";
+                forestInfoTd.textContent = "Loading…";
 
                 const forestTr = document.createElement("tr");
                 forestTr.dataset.forestRow = "combined";
@@ -619,12 +671,21 @@
         }
 
         // --- Nearby forest coverage ---
+        function closeRing(coords) {
+            if (coords.length >= 3 &&
+                (coords[0][0] !== coords[coords.length - 1][0] ||
+                 coords[0][1] !== coords[coords.length - 1][1])) {
+                coords.push(coords[0]);
+            }
+            return coords;
+        }
+
         async function updateNearbyForest(origin) {
             const tbody = document.getElementById("nearby-body");
             const combinedTd = tbody.querySelector('td[data-forest="combined"]');
             if (!combinedTd) return;
 
-            combinedTd.textContent = "Loading forest data…";
+            combinedTd.textContent = "Loading…";
 
             if (typeof turf === "undefined") {
                 combinedTd.textContent = "Turf.js unavailable";
@@ -648,16 +709,18 @@
                     if (el.geometry && el.geometry.length) {
                         const coords = el.geometry.map((p) => [p.lon, p.lat]);
                         if (coords.length >= 3) {
-                            if (coords[0][0] !== coords[coords.length - 1][0] || coords[0][1] !== coords[coords.length - 1][1]) {
-                                coords.push(coords[0]);
-                            }
+                            closeRing(coords);
                             try {
                                 features.push(turf.polygon([coords], { id: el.id, osmType: el.type }));
                             } catch (e) {
-                                // ignore invalid geometry
+                                console.warn(`Invalid polygon geometry for element ${el.id}:`, e.message);
                             }
                         } else if (coords.length) {
-                            try { features.push(turf.lineString(coords, { id: el.id, osmType: el.type })); } catch (e) { }
+                            try {
+                                features.push(turf.lineString(coords, { id: el.id, osmType: el.type }));
+                            } catch (e) {
+                                console.warn(`Invalid lineString geometry for element ${el.id}:`, e.message);
+                            }
                         }
                     } else if (el.type === "relation" && el.members) {
                         const rings = [];
@@ -665,13 +728,17 @@
                             if (m.geometry && m.geometry.length) {
                                 const c = m.geometry.map((p) => [p.lon, p.lat]);
                                 if (c.length >= 3) {
-                                    if (c[0][0] !== c[c.length - 1][0] || c[0][1] !== c[c.length - 1][1]) c.push(c[0]);
+                                    closeRing(c);
                                     rings.push(c);
                                 }
                             }
                         });
                         if (rings.length) {
-                            try { features.push(turf.polygon(rings, { id: el.id, osmType: el.type })); } catch (e) { }
+                            try {
+                                features.push(turf.polygon(rings, { id: el.id, osmType: el.type }));
+                            } catch (e) {
+                                console.warn(`Invalid relation polygon for element ${el.id}:`, e.message);
+                            }
                         }
                     }
                 });
@@ -685,14 +752,34 @@
                         const inter = turf.intersect(f, circle);
                         if (inter) totalArea += turf.area(inter);
                     } catch (e) {
-                        // continue on errors
+                        console.warn("Intersection calculation failed:", e.message);
                     }
                 });
 
-                const areaKm2 = totalArea / 1e6;
                 const percent = circleArea > 0 ? (totalArea / circleArea) * 100 : 0;
 
-                combinedTd.textContent = `${percent.toFixed(1)}%`;
+                combinedTd.textContent = `${percent.toFixed(1)}% `;
+                combinedTd.classList.remove("status");
+                combinedTd.removeAttribute("data-loading");
+
+                const infoIcon = document.createElement("span");
+                infoIcon.className = "info-tooltip";
+                infoIcon.setAttribute("role", "button");
+                infoIcon.setAttribute("tabindex", "0");
+                infoIcon.setAttribute("aria-label", "More info");
+                infoIcon.textContent = "\u24D8";
+
+                const tooltipText = document.createElement("span");
+                tooltipText.className = "tooltip-text";
+                tooltipText.textContent = "Forest coverage within 3 km radius";
+                infoIcon.appendChild(tooltipText);
+
+                infoIcon.addEventListener("click", (e) => {
+                    e.stopPropagation();
+                    infoIcon.classList.toggle("active");
+                });
+
+                combinedTd.appendChild(infoIcon);
             } catch (err) {
                 combinedTd.textContent = "Unable to load forest data.";
             }
@@ -738,6 +825,13 @@
         });
 
         renderTravelTable();
+
+        // Close tooltips when clicking elsewhere
+        document.addEventListener("click", () => {
+            document.querySelectorAll(".info-tooltip.active").forEach((el) => {
+                el.classList.remove("active");
+            });
+        });
 
         // Load default address on page load
         addressInput.value = "Freilagerstrasse 99, 8047 Zürich";
