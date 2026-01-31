@@ -282,7 +282,7 @@
         </section>
 
         <section class="card">
-            <h2>Nearby</h2>
+            <h2>Miscellaneous</h2>
             <div class="table-wrapper">
                 <table>
                     <tbody id="nearby-body">
@@ -613,7 +613,6 @@
 
         async function updateNearbyGyms(origin) {
             const tbody = document.getElementById("nearby-body");
-            tbody.innerHTML = `<tr><td colspan="3" class="status">Checking nearby…</td></tr>`;
             try {
                 // Geocode all gyms in parallel
                 await Promise.all(climbingGyms.map((gym) => ensureDestinationCoordinates(gym)));
@@ -917,7 +916,7 @@
 
                 const tooltipText = document.createElement("span");
                 tooltipText.className = "tooltip-text";
-                tooltipText.textContent = `Fog estimate: ${reasonText}`;
+                tooltipText.textContent = reasonText;
                 infoIcon.appendChild(tooltipText);
 
                 infoIcon.addEventListener("click", (e) => {
@@ -936,7 +935,7 @@
         function closeRing(coords) {
             if (coords.length >= 3 &&
                 (coords[0][0] !== coords[coords.length - 1][0] ||
-                 coords[0][1] !== coords[coords.length - 1][1])) {
+                    coords[0][1] !== coords[coords.length - 1][1])) {
                 coords.push(coords[0]);
             }
             return coords;
@@ -1085,9 +1084,9 @@
 
                 // Build tooltip text
                 const distText = nearestDistanceDisplay !== null
-                    ? (nearestDistanceDisplay < 1000 ? `${Math.round(nearestDistanceDisplay)}m` : `${(nearestDistanceDisplay / 1000).toFixed(1)}km`)
+                    ? (nearestDistanceDisplay < 1000 ? `${Math.round(nearestDistanceDisplay)} m` : `${(nearestDistanceDisplay / 1000).toFixed(1)} km`)
                     : "N/A";
-                const tooltipContent = `${distText} to forest, ${largestPatchKm2.toFixed(1)} km² largest, ${percent.toFixed(0)}% coverage`;
+                const tooltipContent = `${distText} to forest, ${largestPatchKm2.toFixed(1)} km² largest, ${percent.toFixed(0)}% coverage within 3 km`;
 
                 combinedTd.textContent = `${forestRating} `;
                 combinedTd.classList.remove("status");
