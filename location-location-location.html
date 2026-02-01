@@ -537,7 +537,7 @@
             const gymNameCell = document.createElement("td");
             gymNameCell.className = "text-left";
             gymNameCell.dataset.gymName = "true";
-            gymNameCell.textContent = "Closest climbing gym";
+            gymNameCell.textContent = "🧗 Nearest climbing gym";
             gymRow.appendChild(gymNameCell);
 
             const gymBikeCell = document.createElement("td");
@@ -783,7 +783,7 @@
             const gymCarCell = gymRow?.querySelector('td[data-mode="driving"]');
 
             // Set loading state for gym row
-            if (gymNameCell) gymNameCell.textContent = "Closest climbing gym";
+            if (gymNameCell) gymNameCell.textContent = "🧗 Nearest climbing gym";
             [gymBikeCell, gymTransitCell, gymCarCell].forEach((cell) => {
                 if (cell) {
                     cell.textContent = "Loading…";
@@ -833,7 +833,7 @@
                 const closestGym = results[0];
 
                 // Update gym name cell
-                if (gymNameCell) gymNameCell.textContent = closestGym.gym.name;
+                if (gymNameCell) gymNameCell.textContent = `🧗 ${closestGym.gym.name}`;
 
                 // Fetch all travel modes for the closest gym
                 const originStr = `${origin.lat},${origin.lng}`;
