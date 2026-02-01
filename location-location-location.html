@@ -128,8 +128,10 @@
             width: 40%;
         }
 
-        th:nth-child(2) {
-            width: 60%;
+        th:nth-child(2),
+        th:nth-child(3),
+        th:nth-child(4) {
+            width: 20%;
         }
 
         .table-wrapper {
@@ -280,7 +282,9 @@
                     <thead>
                         <tr>
                             <th class="text-left">Destination</th>
-                            <th>🚲 • 🚌 • 🚗</th>
+                            <th>🚲</th>
+                            <th>🚌</th>
+                            <th>🚗</th>
                         </tr>
                     </thead>
                     <tbody id="travel-times-body"></tbody>
@@ -293,11 +297,7 @@
             <h2>Miscellaneous</h2>
             <div class="table-wrapper">
                 <table>
-                    <tbody id="nearby-body">
-                        <tr>
-                            <td colspan="3" class="status">Checking location…</td>
-                        </tr>
-                    </tbody>
+                    <tbody id="nearby-body"></tbody>
                 </table>
             </div>
         </section>
@@ -356,8 +356,8 @@
             }
             const minutes = Math.round(seconds / 60);
             if (mode === "cycling") {
-                // Bike: <20m green, 20-45m orange, >45m red
-                if (minutes < 20) return "time-green";
+                // Bike: <30m green, 30-45m orange, >45m red
+                if (minutes < 30) return "time-green";
                 if (minutes <= 45) return "time-orange";
                 return "time-red";
             } else {
@@ -512,13 +512,112 @@
                 nameCell.textContent = destination.name;
                 row.appendChild(nameCell);
 
-                const timesCell = document.createElement("td");
-                timesCell.dataset.destinationId = destination.id;
-                timesCell.textContent = "—";
-                row.appendChild(timesCell);
+                const bikeCell = document.createElement("td");
+                bikeCell.dataset.mode = "cycling";
+                bikeCell.textContent = "—";
+                row.appendChild(bikeCell);
+
+                const transitCell = document.createElement("td");
+                transitCell.dataset.mode = "transit";
+                transitCell.textContent = "—";
+                row.appendChild(transitCell);
+
+                const carCell = document.createElement("td");
+                carCell.dataset.mode = "driving";
+                carCell.textContent = "—";
+                row.appendChild(carCell);
 
                 travelTimesBody.appendChild(row);
             });
+
+            // Add climbing gym row
+            const gymRow = document.createElement("tr");
+            gymRow.dataset.destinationId = "climbing-gym";
+
+            const gymNameCell = document.createElement("td");
+            gymNameCell.className = "text-left";
+            gymNameCell.dataset.gymName = "true";
+            gymNameCell.textContent = "Closest climbing gym";
+            gymRow.appendChild(gymNameCell);
+
+            const gymBikeCell = document.createElement("td");
+            gymBikeCell.dataset.mode = "cycling";
+            gymBikeCell.textContent = "—";
+            gymRow.appendChild(gymBikeCell);
+
+            const gymTransitCell = document.createElement("td");
+            gymTransitCell.dataset.mode = "transit";
+            gymTransitCell.textContent = "—";
+            gymRow.appendChild(gymTransitCell);
+
+            const gymCarCell = document.createElement("td");
+            gymCarCell.dataset.mode = "driving";
+            gymCarCell.textContent = "—";
+            gymRow.appendChild(gymCarCell);
+
+            travelTimesBody.appendChild(gymRow);
+        }
+
+        function renderMiscTable() {
+            const tbody = document.getElementById("nearby-body");
+            tbody.innerHTML = "";
+
+            // Forest row
+            const forestTr = document.createElement("tr");
+            forestTr.dataset.miscRow = "forest";
+
+            const forestEmojiTd = document.createElement("td");
+            forestEmojiTd.textContent = "🌲";
+            forestTr.appendChild(forestEmojiTd);
+
+            const forestLabelTd = document.createElement("td");
+            forestTr.appendChild(forestLabelTd);
+
+            const forestInfoTd = document.createElement("td");
+            forestInfoTd.dataset.forest = "combined";
+            forestInfoTd.className = "status";
+            forestInfoTd.textContent = "Loading…";
+            forestTr.appendChild(forestInfoTd);
+
+            tbody.appendChild(forestTr);
+
+            // Trail row
+            const trailTr = document.createElement("tr");
+            trailTr.dataset.miscRow = "trails";
+
+            const trailEmojiTd = document.createElement("td");
+            trailEmojiTd.textContent = "🥾";
+            trailTr.appendChild(trailEmojiTd);
+
+            const trailLabelTd = document.createElement("td");
+            trailTr.appendChild(trailLabelTd);
+
+            const trailInfoTd = document.createElement("td");
+            trailInfoTd.dataset.trails = "value";
+            trailInfoTd.className = "status";
+            trailInfoTd.textContent = "Loading…";
+            trailTr.appendChild(trailInfoTd);
+
+            tbody.appendChild(trailTr);
+
+            // Fog row
+            const fogTr = document.createElement("tr");
+            fogTr.dataset.miscRow = "fog";
+
+            const fogEmojiTd = document.createElement("td");
+            fogEmojiTd.textContent = "🌫️";
+            fogTr.appendChild(fogEmojiTd);
+
+            const fogLabelTd = document.createElement("td");
+            fogTr.appendChild(fogLabelTd);
+
+            const fogInfoTd = document.createElement("td");
+            fogInfoTd.dataset.fog = "value";
+            fogInfoTd.className = "status";
+            fogInfoTd.textContent = "Loading…";
+            fogTr.appendChild(fogInfoTd);
+
+            tbody.appendChild(fogTr);
         }
 
         function updateCellLink(cell, origin, destination, mode) {
@@ -564,10 +663,13 @@
         }
 
         async function updateTravelTimes(origin) {
-            const cells = Array.from(travelTimesBody.querySelectorAll("td[data-destination-id]"));
-            cells.forEach((cell) => {
-                cell.textContent = "Loading…";
-                cell.className = "status";
+            const rows = Array.from(travelTimesBody.querySelectorAll("tr[data-destination-id]"));
+            rows.forEach((row) => {
+                const cells = row.querySelectorAll("td[data-mode]");
+                cells.forEach((cell) => {
+                    cell.textContent = "Loading…";
+                    cell.className = "status";
+                });
             });
 
             const resolvedDestinations = {};
@@ -577,12 +679,21 @@
 
             for (const destination of destinations) {
                 const resolved = resolvedDestinations[destination.id];
-                const cell = cells.find((c) => c.dataset.destinationId === destination.id);
-                if (!cell) continue;
+                const row = travelTimesBody.querySelector(`tr[data-destination-id="${destination.id}"]`);
+                if (!row) continue;
+
+                const bikeCell = row.querySelector('td[data-mode="cycling"]');
+                const transitCell = row.querySelector('td[data-mode="transit"]');
+                const carCell = row.querySelector('td[data-mode="driving"]');
 
                 if (!resolved) {
-                    cell.textContent = destination.address ? "Not found" : "Add address";
-                    cell.className = "status";
+                    const message = destination.address ? "Not found" : "Add address";
+                    [bikeCell, transitCell, carCell].forEach((cell) => {
+                        if (cell) {
+                            cell.textContent = message;
+                            cell.className = "status";
+                        }
+                    });
                     continue;
                 }
 
@@ -600,45 +711,51 @@
                     const originStr = `${origin.lat},${origin.lng}`;
                     const destinationStr = resolved.address;
 
-                    // Create links for each mode
-                    cell.innerHTML = "";
-                    cell.className = "";
+                    // Bike cell
+                    if (bikeCell) {
+                        bikeCell.innerHTML = "";
+                        bikeCell.className = "";
+                        const bikeLink = document.createElement("a");
+                        bikeLink.className = `time-link ${getTimeColorClass(cyclingSeconds, "cycling")}`;
+                        bikeLink.href = buildDirectionsLink(originStr, destinationStr, "bicycling");
+                        bikeLink.target = "_blank";
+                        bikeLink.rel = "noopener";
+                        bikeLink.textContent = formatDuration(cyclingSeconds);
+                        bikeCell.appendChild(bikeLink);
+                    }
 
-                    // Bike link
-                    const bikeLink = document.createElement("a");
-                    bikeLink.className = `time-link ${getTimeColorClass(cyclingSeconds, "cycling")}`;
-                    bikeLink.href = buildDirectionsLink(originStr, destinationStr, "bicycling");
-                    bikeLink.target = "_blank";
-                    bikeLink.rel = "noopener";
-                    bikeLink.textContent = formatDuration(cyclingSeconds);
-                    cell.appendChild(bikeLink);
+                    // Transit cell
+                    if (transitCell) {
+                        transitCell.innerHTML = "";
+                        transitCell.className = "";
+                        const transitLink = document.createElement("a");
+                        transitLink.className = `time-link ${getTimeColorClass(transitSeconds, "transit")}`;
+                        transitLink.href = buildDirectionsLink(originStr, destinationStr, "transit");
+                        transitLink.target = "_blank";
+                        transitLink.rel = "noopener";
+                        transitLink.textContent = formatDuration(transitSeconds);
+                        transitCell.appendChild(transitLink);
+                    }
 
-                    // Separator
-                    cell.appendChild(document.createTextNode(" • "));
-
-                    // Transit link
-                    const transitLink = document.createElement("a");
-                    transitLink.className = `time-link ${getTimeColorClass(transitSeconds, "transit")}`;
-                    transitLink.href = buildDirectionsLink(originStr, destinationStr, "transit");
-                    transitLink.target = "_blank";
-                    transitLink.rel = "noopener";
-                    transitLink.textContent = formatDuration(transitSeconds);
-                    cell.appendChild(transitLink);
-
-                    // Separator
-                    cell.appendChild(document.createTextNode(" • "));
-
-                    // Car link
-                    const carLink = document.createElement("a");
-                    carLink.className = `time-link ${getTimeColorClass(drivingSeconds, "driving")}`;
-                    carLink.href = buildDirectionsLink(originStr, destinationStr, "driving");
-                    carLink.target = "_blank";
-                    carLink.rel = "noopener";
-                    carLink.textContent = formatDuration(drivingSeconds);
-                    cell.appendChild(carLink);
+                    // Car cell
+                    if (carCell) {
+                        carCell.innerHTML = "";
+                        carCell.className = "";
+                        const carLink = document.createElement("a");
+                        carLink.className = `time-link ${getTimeColorClass(drivingSeconds, "driving")}`;
+                        carLink.href = buildDirectionsLink(originStr, destinationStr, "driving");
+                        carLink.target = "_blank";
+                        carLink.rel = "noopener";
+                        carLink.textContent = formatDuration(drivingSeconds);
+                        carCell.appendChild(carLink);
+                    }
                 } catch (error) {
-                    cell.textContent = "Unavailable";
-                    cell.className = "status";
+                    [bikeCell, transitCell, carCell].forEach((cell) => {
+                        if (cell) {
+                            cell.textContent = "Unavailable";
+                            cell.className = "status";
+                        }
+                    });
                 }
             }
         }
@@ -659,6 +776,32 @@
 
         async function updateNearbyGyms(origin) {
             const tbody = document.getElementById("nearby-body");
+            const gymRow = travelTimesBody.querySelector('tr[data-destination-id="climbing-gym"]');
+            const gymNameCell = gymRow?.querySelector('td[data-gym-name="true"]');
+            const gymBikeCell = gymRow?.querySelector('td[data-mode="cycling"]');
+            const gymTransitCell = gymRow?.querySelector('td[data-mode="transit"]');
+            const gymCarCell = gymRow?.querySelector('td[data-mode="driving"]');
+
+            // Set loading state for gym row
+            if (gymNameCell) gymNameCell.textContent = "Closest climbing gym";
+            [gymBikeCell, gymTransitCell, gymCarCell].forEach((cell) => {
+                if (cell) {
+                    cell.textContent = "Loading…";
+                    cell.className = "status";
+                }
+            });
+
+            // Reset loading state for misc rows
+            const forestTd = tbody.querySelector('td[data-forest="combined"]');
+            const trailTd = tbody.querySelector('td[data-trails="value"]');
+            const fogTd = tbody.querySelector('td[data-fog="value"]');
+            [forestTd, trailTd, fogTd].forEach((cell) => {
+                if (cell) {
+                    cell.textContent = "Loading…";
+                    cell.className = "status";
+                }
+            });
+
             try {
                 // Geocode all gyms in parallel
                 await Promise.all(climbingGyms.map((gym) => ensureDestinationCoordinates(gym)));
@@ -677,90 +820,81 @@
 
                 const results = (await Promise.all(routePromises)).filter(Boolean);
                 if (!results.length) {
-                    tbody.innerHTML = `<tr><td colspan="3" class="status">No route information available.</td></tr>`;
+                    [gymBikeCell, gymTransitCell, gymCarCell].forEach((cell) => {
+                        if (cell) {
+                            cell.textContent = "Unavailable";
+                            cell.className = "status";
+                        }
+                    });
                     return;
                 }
                 results.sort((a, b) => a.duration - b.duration);
 
                 const closestGym = results[0];
-                tbody.innerHTML = "";
-                const tr = document.createElement("tr");
 
-                const emojiTd = document.createElement("td");
-                emojiTd.textContent = "🧗";
-                tr.appendChild(emojiTd);
+                // Update gym name cell
+                if (gymNameCell) gymNameCell.textContent = closestGym.gym.name;
 
-                const nameTd = document.createElement("td");
-                nameTd.textContent = closestGym.gym.name;
-                nameTd.className = "text-left";
-                tr.appendChild(nameTd);
+                // Fetch all travel modes for the closest gym
+                const originStr = `${origin.lat},${origin.lng}`;
+                const destinationStr = closestGym.gym.address;
 
-                const infoTd = document.createElement("td");
-                const link = document.createElement("a");
-                link.className = "time-link";
-                link.target = "_blank";
-                link.rel = "noopener";
-                link.href = buildDirectionsLink(`${origin.lat},${origin.lng}`, `${closestGym.gym.lat},${closestGym.gym.lng}`, "driving");
-                link.textContent = `${formatDistance(closestGym.distance)} · ${formatDuration(closestGym.duration)} 🚗`;
-                infoTd.appendChild(link);
-                tr.appendChild(infoTd);
+                const [transitRaw, cyclingRoute, drivingRoute] = await Promise.all([
+                    fetchTransitDuration(origin, closestGym.gym),
+                    fetchOsrmRoute(origin, closestGym.gym, "cycling"),
+                    fetchOsrmRoute(origin, closestGym.gym, "driving"),
+                ]);
 
-                tbody.appendChild(tr);
+                const transitSeconds = parseTransitDuration(transitRaw);
+                const cyclingSeconds = cyclingRoute.duration;
+                const drivingSeconds = drivingRoute.duration;
 
-                const forestEmojiTd = document.createElement("td");
-                forestEmojiTd.textContent = "🌲";
+                // Bike cell
+                if (gymBikeCell) {
+                    gymBikeCell.innerHTML = "";
+                    gymBikeCell.className = "";
+                    const bikeLink = document.createElement("a");
+                    bikeLink.className = `time-link ${getTimeColorClass(cyclingSeconds, "cycling")}`;
+                    bikeLink.href = buildDirectionsLink(originStr, destinationStr, "bicycling");
+                    bikeLink.target = "_blank";
+                    bikeLink.rel = "noopener";
+                    bikeLink.textContent = formatDuration(cyclingSeconds);
+                    gymBikeCell.appendChild(bikeLink);
+                }
 
-                const forestLabelTd = document.createElement("td");
+                // Transit cell
+                if (gymTransitCell) {
+                    gymTransitCell.innerHTML = "";
+                    gymTransitCell.className = "";
+                    const transitLink = document.createElement("a");
+                    transitLink.className = `time-link ${getTimeColorClass(transitSeconds, "transit")}`;
+                    transitLink.href = buildDirectionsLink(originStr, destinationStr, "transit");
+                    transitLink.target = "_blank";
+                    transitLink.rel = "noopener";
+                    transitLink.textContent = formatDuration(transitSeconds);
+                    gymTransitCell.appendChild(transitLink);
+                }
 
-                const forestInfoTd = document.createElement("td");
-                forestInfoTd.dataset.forest = "combined";
-                forestInfoTd.dataset.loading = "true";
-                forestInfoTd.className = "status";
-                forestInfoTd.textContent = "Loading…";
+                // Car cell
+                if (gymCarCell) {
+                    gymCarCell.innerHTML = "";
+                    gymCarCell.className = "";
+                    const carLink = document.createElement("a");
+                    carLink.className = `time-link ${getTimeColorClass(drivingSeconds, "driving")}`;
+                    carLink.href = buildDirectionsLink(originStr, destinationStr, "driving");
+                    carLink.target = "_blank";
+                    carLink.rel = "noopener";
+                    carLink.textContent = formatDuration(drivingSeconds);
+                    gymCarCell.appendChild(carLink);
+                }
 
-                const forestTr = document.createElement("tr");
-                forestTr.dataset.forestRow = "combined";
-                forestTr.appendChild(forestEmojiTd);
-                forestTr.appendChild(forestLabelTd);
-                forestTr.appendChild(forestInfoTd);
-
-                tbody.appendChild(forestTr);
-
-                const trailEmojiTd = document.createElement("td");
-                trailEmojiTd.textContent = "🥾";
-
-                const trailLabelTd = document.createElement("td");
-
-                const trailInfoTd = document.createElement("td");
-                trailInfoTd.dataset.trails = "value";
-                trailInfoTd.className = "status";
-                trailInfoTd.textContent = "Loading…";
-
-                const trailTr = document.createElement("tr");
-                trailTr.appendChild(trailEmojiTd);
-                trailTr.appendChild(trailLabelTd);
-                trailTr.appendChild(trailInfoTd);
-
-                tbody.appendChild(trailTr);
-
-                const fogEmojiTd = document.createElement("td");
-                fogEmojiTd.textContent = "🌫️";
-
-                const fogLabelTd = document.createElement("td");
-
-                const fogInfoTd = document.createElement("td");
-                fogInfoTd.dataset.fog = "value";
-                fogInfoTd.className = "status";
-                fogInfoTd.textContent = "Loading…";
-
-                const fogTr = document.createElement("tr");
-                fogTr.appendChild(fogEmojiTd);
-                fogTr.appendChild(fogLabelTd);
-                fogTr.appendChild(fogInfoTd);
-
-                tbody.appendChild(fogTr);
             } catch (err) {
-                tbody.innerHTML = `<tr><td colspan="3" class="status">Unable to determine nearby gyms.</td></tr>`;
+                [gymBikeCell, gymTransitCell, gymCarCell, forestTd, trailTd, fogTd].forEach((cell) => {
+                    if (cell) {
+                        cell.textContent = "Unavailable";
+                        cell.className = "status";
+                    }
+                });
             }
         }
 
@@ -1300,6 +1434,7 @@
         });
 
         renderTravelTable();
+        renderMiscTable();
 
         // Close tooltips when clicking elsewhere
         document.addEventListener("click", () => {
