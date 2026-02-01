@@ -125,13 +125,11 @@
         }
 
         th:first-child {
-            width: 60px;
+            width: 40%;
         }
 
-        th:nth-child(2),
-        th:nth-child(3),
-        th:nth-child(4) {
-            width: calc((100% - 60px) / 3);
+        th:nth-child(2) {
+            width: 60%;
         }
 
         .table-wrapper {
@@ -147,6 +145,18 @@
         .time-link[aria-disabled="true"] {
             color: #9ca3af;
             pointer-events: none;
+        }
+
+        .time-link.time-green {
+            color: #16a34a;
+        }
+
+        .time-link.time-orange {
+            color: #d97706;
+        }
+
+        .time-link.time-red {
+            color: #dc2626;
         }
 
         .text-left {
@@ -269,10 +279,8 @@
                 <table>
                     <thead>
                         <tr>
-                            <th><span class="sr-only">Travel mode</span></th>
-                            <th>Zurich HB</th>
-                            <th>USZ</th>
-                            <th>Sensirion</th>
+                            <th class="text-left">Destination</th>
+                            <th>🚲 • 🚌 • 🚗</th>
                         </tr>
                     </thead>
                     <tbody id="travel-times-body"></tbody>
@@ -340,6 +348,24 @@
             const hours = Math.floor(minutes / 60);
             const remaining = minutes % 60;
             return `${hours}h ${remaining}m`;
+        }
+
+        function getTimeColorClass(seconds, mode) {
+            if (!Number.isFinite(seconds)) {
+                return "";
+            }
+            const minutes = Math.round(seconds / 60);
+            if (mode === "cycling") {
+                // Bike: <20m green, 20-45m orange, >45m red
+                if (minutes < 20) return "time-green";
+                if (minutes <= 45) return "time-orange";
+                return "time-red";
+            } else {
+                // Public transport and car: <30m green, 30-70m orange, >70m red
+                if (minutes < 30) return "time-green";
+                if (minutes <= 70) return "time-orange";
+                return "time-red";
+            }
         }
 
         function buildGoogleMapEmbed(query, lat, lng) {
@@ -477,28 +503,19 @@
 
         function renderTravelTable() {
             travelTimesBody.innerHTML = "";
-            travelModes.forEach((mode) => {
+            destinations.forEach((destination) => {
                 const row = document.createElement("tr");
-                row.dataset.mode = mode.id;
+                row.dataset.destinationId = destination.id;
 
-                const labelCell = document.createElement("td");
-                labelCell.textContent = mode.label;
-                row.appendChild(labelCell);
+                const nameCell = document.createElement("td");
+                nameCell.className = "text-left";
+                nameCell.textContent = destination.name;
+                row.appendChild(nameCell);
 
-                destinations.forEach((destination) => {
-                    const cell = document.createElement("td");
-                    cell.dataset.destinationId = destination.id;
-                    cell.dataset.mode = mode.id;
-
-                    const link = document.createElement("a");
-                    link.className = "time-link";
-                    link.href = "#";
-                    link.textContent = "—";
-                    link.setAttribute("aria-disabled", "true");
-
-                    cell.appendChild(link);
-                    row.appendChild(cell);
-                });
+                const timesCell = document.createElement("td");
+                timesCell.dataset.destinationId = destination.id;
+                timesCell.textContent = "—";
+                row.appendChild(timesCell);
 
                 travelTimesBody.appendChild(row);
             });
@@ -549,7 +566,8 @@
         async function updateTravelTimes(origin) {
             const cells = Array.from(travelTimesBody.querySelectorAll("td[data-destination-id]"));
             cells.forEach((cell) => {
-                setCellStatus(cell, "Loading…", true);
+                cell.textContent = "Loading…";
+                cell.className = "status";
             });
 
             const resolvedDestinations = {};
@@ -559,11 +577,12 @@
 
             for (const destination of destinations) {
                 const resolved = resolvedDestinations[destination.id];
-                const destinationCells = cells.filter((cell) => cell.dataset.destinationId === destination.id);
+                const cell = cells.find((c) => c.dataset.destinationId === destination.id);
+                if (!cell) continue;
+
                 if (!resolved) {
-                    destinationCells.forEach((cell) => {
-                        setCellStatus(cell, destination.address ? "Not found" : "Add address", true);
-                    });
+                    cell.textContent = destination.address ? "Not found" : "Add address";
+                    cell.className = "status";
                     continue;
                 }
 
@@ -575,24 +594,51 @@
                     ]);
 
                     const transitSeconds = parseTransitDuration(transitRaw);
-                    const durations = {
-                        transit: formatDuration(transitSeconds),
-                        cycling: formatDuration(cyclingRoute.duration),
-                        driving: formatDuration(drivingRoute.duration),
-                    };
+                    const cyclingSeconds = cyclingRoute.duration;
+                    const drivingSeconds = drivingRoute.duration;
 
-                    destinationCells.forEach((cell) => {
-                        const mode = cell.dataset.mode;
-                        setCellStatus(cell, durations[mode] ?? "—", false);
-                        const mapMode = travelModes.find((item) => item.id === mode)?.mapMode;
-                        if (mapMode) {
-                            updateCellLink(cell, origin, resolved, mapMode);
-                        }
-                    });
+                    const originStr = `${origin.lat},${origin.lng}`;
+                    const destinationStr = resolved.address;
+
+                    // Create links for each mode
+                    cell.innerHTML = "";
+                    cell.className = "";
+
+                    // Bike link
+                    const bikeLink = document.createElement("a");
+                    bikeLink.className = `time-link ${getTimeColorClass(cyclingSeconds, "cycling")}`;
+                    bikeLink.href = buildDirectionsLink(originStr, destinationStr, "bicycling");
+                    bikeLink.target = "_blank";
+                    bikeLink.rel = "noopener";
+                    bikeLink.textContent = formatDuration(cyclingSeconds);
+                    cell.appendChild(bikeLink);
+
+                    // Separator
+                    cell.appendChild(document.createTextNode(" • "));
+
+                    // Transit link
+                    const transitLink = document.createElement("a");
+                    transitLink.className = `time-link ${getTimeColorClass(transitSeconds, "transit")}`;
+                    transitLink.href = buildDirectionsLink(originStr, destinationStr, "transit");
+                    transitLink.target = "_blank";
+                    transitLink.rel = "noopener";
+                    transitLink.textContent = formatDuration(transitSeconds);
+                    cell.appendChild(transitLink);
+
+                    // Separator
+                    cell.appendChild(document.createTextNode(" • "));
+
+                    // Car link
+                    const carLink = document.createElement("a");
+                    carLink.className = `time-link ${getTimeColorClass(drivingSeconds, "driving")}`;
+                    carLink.href = buildDirectionsLink(originStr, destinationStr, "driving");
+                    carLink.target = "_blank";
+                    carLink.rel = "noopener";
+                    carLink.textContent = formatDuration(drivingSeconds);
+                    cell.appendChild(carLink);
                 } catch (error) {
-                    destinationCells.forEach((cell) => {
-                        setCellStatus(cell, "Unavailable", true);
-                    });
+                    cell.textContent = "Unavailable";
+                    cell.className = "status";
                 }
             }
         }
