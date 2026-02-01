@@ -1011,8 +1011,8 @@
 
                 // Elevation band (0-26 points) - lower elevations more fog-prone in Swiss Plateau
                 let elevPoints = 0;
-                if (centerElev < 600) elevPoints = 26;
-                else if (centerElev < 900) elevPoints = 22;
+                if (centerElev < 500) elevPoints = 26;
+                else if (centerElev < 700) elevPoints = 20;
                 else if (centerElev < 1400) elevPoints = 14;
                 else if (centerElev < 2000) elevPoints = 8;
                 else elevPoints = 4;
