@@ -140,7 +140,7 @@
         }
 
         .table-wrapper {
-            overflow-x: auto;
+            overflow: visible;
         }
 
         .time-link {
@@ -1191,11 +1191,9 @@
 
                 const circle = turf.circle([origin.lng, origin.lat], 3000, { steps: 64, units: "meters" });
                 const circleArea = turf.area(circle);
-                const originPoint = turf.point([origin.lng, origin.lat]);
 
                 let totalArea = 0;
                 let largestPatchArea = 0;
-                let nearestDistanceM = Infinity;
 
                 features.forEach((f) => {
                     try {
@@ -1207,26 +1205,6 @@
                                 largestPatchArea = patchArea;
                             }
                         }
-
-                        // Calculate distance to nearest forest edge
-                        if (f.geometry.type === "Polygon" || f.geometry.type === "MultiPolygon") {
-                            // Check if point is inside polygon
-                            if (turf.booleanPointInPolygon(originPoint, f)) {
-                                nearestDistanceM = 0;
-                            } else {
-                                // Convert polygon boundary to line(s) and find distance
-                                const line = turf.polygonToLine(f);
-                                const lines = line.geometry.type === "MultiLineString"
-                                    ? line.geometry.coordinates.map((coords) => turf.lineString(coords))
-                                    : [line];
-                                for (const l of lines) {
-                                    const dist = turf.pointToLineDistance(originPoint, l, { units: "meters" });
-                                    if (dist < nearestDistanceM) {
-                                        nearestDistanceM = dist;
-                                    }
-                                }
-                            }
-                        }
                     } catch (e) {
                         console.warn("Forest calculation failed:", e.message);
                     }
@@ -1234,16 +1212,8 @@
 
                 const percent = circleArea > 0 ? (totalArea / circleArea) * 100 : 0;
                 const largestPatchKm2 = largestPatchArea / 1e6;
-                const nearestDistanceDisplay = nearestDistanceM === Infinity ? null : nearestDistanceM;
 
-                // Scoring: distance (40%), largest patch (35%), coverage (25%)
-                let distanceScore = 10;
-                if (nearestDistanceDisplay !== null) {
-                    if (nearestDistanceDisplay < 500) distanceScore = 100;
-                    else if (nearestDistanceDisplay < 1000) distanceScore = 70;
-                    else if (nearestDistanceDisplay < 2000) distanceScore = 40;
-                }
-
+                // Scoring: largest patch (50%), coverage (50%)
                 let patchScore = 10;
                 if (largestPatchKm2 >= 2) patchScore = 100;
                 else if (largestPatchKm2 >= 1) patchScore = 70;
@@ -1253,7 +1223,7 @@
                 if (percent >= 20) coverageScore = 100;
                 else if (percent >= 10) coverageScore = 60;
 
-                const combinedScore = (distanceScore * 0.4) + (patchScore * 0.35) + (coverageScore * 0.25);
+                const combinedScore = (patchScore * 0.5) + (coverageScore * 0.5);
 
                 let forestRating, forestRatingClass;
                 if (combinedScore >= 70) {
@@ -1268,10 +1238,7 @@
                 }
 
                 // Build tooltip text
-                const distText = nearestDistanceDisplay !== null
-                    ? (nearestDistanceDisplay < 1000 ? `${Math.round(nearestDistanceDisplay)} m` : `${(nearestDistanceDisplay / 1000).toFixed(1)} km`)
-                    : "N/A";
-                const tooltipContent = `${distText} to forest, ${largestPatchKm2.toFixed(1)} km² largest, ${percent.toFixed(0)}% coverage within 3 km`;
+                const tooltipContent = `${largestPatchKm2.toFixed(1)} km² largest patch, ${percent.toFixed(0)}% coverage within 3 km`;
 
                 combinedTd.textContent = `${forestRating} `;
                 combinedTd.classList.remove("status");
