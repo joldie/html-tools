@@ -359,6 +359,27 @@
         .page-footer a {
             color: var(--color-primary);
         }
+
+        .clear-cache-btn {
+            position: fixed;
+            bottom: 16px;
+            right: 16px;
+            padding: 8px 12px;
+            font-size: 0.75rem;
+            background: var(--color-bg);
+            color: var(--color-text-muted);
+            border: 1px solid var(--color-border);
+            border-radius: 8px;
+            cursor: pointer;
+            opacity: 0.7;
+            transition: opacity 0.2s, background 0.2s;
+            z-index: 50;
+        }
+
+        .clear-cache-btn:hover {
+            opacity: 1;
+            background: var(--color-card);
+        }
     </style>
 </head>
 
@@ -432,6 +453,8 @@
         2026-02-02 · <a href="https://github.com/joldie/html-tools/blob/main/location-location-location.html"
             target="_blank" rel="noopener">Source code</a>
     </footer>
+
+    <button id="clear-cache-btn" class="clear-cache-btn" title="Clear cached data and API key">Clear cache</button>
 
     <div id="api-key-modal" class="modal-overlay hidden">
         <div class="modal">
@@ -556,6 +579,60 @@
             localStorage.removeItem(API_KEY_STORAGE_KEY);
             localStorage.removeItem(API_KEY_SKIPPED_KEY);
             showApiKeyModal();
+        }
+
+        // --- Cache management ---
+        const CACHE_PREFIX = "locationCache_";
+        const CACHE_TTL = {
+            geocode: 14 * 24 * 60 * 60 * 1000,       // 14 days
+            reverseGeocode: 14 * 24 * 60 * 60 * 1000, // 14 days
+            routing: 14 * 24 * 60 * 60 * 1000,        // 14 days
+            environmental: 14 * 24 * 60 * 60 * 1000,  // 14 days
+            supermarket: 14 * 24 * 60 * 60 * 1000,    // 14 days
+        };
+
+        function getCacheKey(type, ...params) {
+            return CACHE_PREFIX + type + "_" + params.map(p => String(p)).join("_");
+        }
+
+        function getCache(key) {
+            try {
+                const item = localStorage.getItem(key);
+                if (!item) return null;
+                const { data, expiry } = JSON.parse(item);
+                if (Date.now() > expiry) {
+                    localStorage.removeItem(key);
+                    return null;
+                }
+                return data;
+            } catch (e) {
+                return null;
+            }
+        }
+
+        function setCache(key, data, ttl) {
+            try {
+                const item = { data, expiry: Date.now() + ttl };
+                localStorage.setItem(key, JSON.stringify(item));
+            } catch (e) {
+                // localStorage full or unavailable, ignore
+                console.warn("Cache write failed:", e.message);
+            }
+        }
+
+        function clearAllCache() {
+            const keysToRemove = [];
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key && key.startsWith(CACHE_PREFIX)) {
+                    keysToRemove.push(key);
+                }
+            }
+            keysToRemove.forEach(key => localStorage.removeItem(key));
+            // Also clear API key settings
+            localStorage.removeItem(API_KEY_STORAGE_KEY);
+            localStorage.removeItem(API_KEY_SKIPPED_KEY);
+            console.log(`Cleared ${keysToRemove.length} cache entries and API key settings`);
         }
 
         // Track last searched origin for refreshing after API key change
@@ -731,6 +808,13 @@
         }
 
         async function geocode(query) {
+            const cacheKey = getCacheKey("geocode", query.toLowerCase());
+            const cached = getCache(cacheKey);
+            if (cached) {
+                console.log("[Cache] Geocode hit:", query);
+                return cached;
+            }
+
             const response = await fetch(
                 `https://nominatim.openstreetmap.org/search?format=json&limit=1&addressdetails=1&q=${encodeURIComponent(query)}`,
                 { headers: { Accept: "application/json" } }
@@ -742,14 +826,23 @@
             if (!data.length) {
                 throw new Error("No results");
             }
-            return {
+            const result = {
                 lat: Number.parseFloat(data[0].lat),
                 lng: Number.parseFloat(data[0].lon),
                 label: data[0].display_name,
             };
+            setCache(cacheKey, result, CACHE_TTL.geocode);
+            return result;
         }
 
         async function reverseGeocode(lat, lng) {
+            const cacheKey = getCacheKey("reverseGeocode", lat.toFixed(5), lng.toFixed(5));
+            const cached = getCache(cacheKey);
+            if (cached !== null) {
+                console.log("[Cache] ReverseGeocode hit:", lat, lng);
+                return cached;
+            }
+
             const response = await fetch(
                 `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&addressdetails=1`,
                 { headers: { Accept: "application/json" } }
@@ -762,10 +855,19 @@
                 throw new Error("No address found");
             }
             // Swiss municipalities can be in different fields depending on the location
-            return data.address.municipality || data.address.city || data.address.town || data.address.village || null;
+            const result = data.address.municipality || data.address.city || data.address.town || data.address.village || null;
+            setCache(cacheKey, result, CACHE_TTL.reverseGeocode);
+            return result;
         }
 
         async function fetchOsrmRoute(origin, destination, profile = "driving") {
+            const cacheKey = getCacheKey("osrm", profile, origin.lat.toFixed(4), origin.lng.toFixed(4), destination.lat.toFixed(4), destination.lng.toFixed(4));
+            const cached = getCache(cacheKey);
+            if (cached) {
+                console.log("[Cache] OSRM hit:", profile);
+                return cached;
+            }
+
             const baseUrl = profile === "cycling"
                 ? "https://routing.openstreetmap.de/routed-bike/route/v1/driving"
                 : "https://routing.openstreetmap.de/routed-car/route/v1/driving";
@@ -778,10 +880,19 @@
             if (!data.routes || !data.routes.length) {
                 throw new Error("No route");
             }
-            return { duration: data.routes[0].duration, distance: data.routes[0].distance };
+            const result = { duration: data.routes[0].duration, distance: data.routes[0].distance };
+            setCache(cacheKey, result, CACHE_TTL.routing);
+            return result;
         }
 
         async function fetchTransitDuration(origin, destination) {
+            const cacheKey = getCacheKey("transit", origin.lat.toFixed(4), origin.lng.toFixed(4), destination.lat.toFixed(4), destination.lng.toFixed(4));
+            const cached = getCache(cacheKey);
+            if (cached) {
+                console.log("[Cache] Transit hit");
+                return cached;
+            }
+
             const params = new URLSearchParams({
                 from: `${origin.lat},${origin.lng}`,
                 to: `${destination.lat},${destination.lng}`,
@@ -797,7 +908,9 @@
             if (!data.connections || !data.connections.length) {
                 throw new Error("No transit results");
             }
-            return data.connections[0].duration;
+            const result = data.connections[0].duration;
+            setCache(cacheKey, result, CACHE_TTL.routing);
+            return result;
         }
 
         function parseTransitDuration(durationText) {
@@ -817,6 +930,13 @@
 
         async function fetchGoogleDistanceMatrix(origin, destination, mode) {
             // mode: "driving", "bicycling", or "transit"
+            const cacheKey = getCacheKey("google", mode, origin.lat.toFixed(4), origin.lng.toFixed(4), destination.lat.toFixed(4), destination.lng.toFixed(4));
+            const cached = getCache(cacheKey);
+            if (cached !== null) {
+                console.log(`[Cache] Google hit: ${mode}`);
+                return cached;
+            }
+
             if (!googleMapsLoaded || typeof google === "undefined") {
                 throw new Error("Google Maps API not loaded");
             }
@@ -849,6 +969,7 @@
                             return;
                         }
                         console.log(`[Google API] Success for ${mode}: ${element.duration.value}s`);
+                        setCache(cacheKey, element.duration.value, CACHE_TTL.routing);
                         resolve(element.duration.value);
                     }
                 );
@@ -1372,68 +1493,77 @@
                 }
             });
 
+            // Check cache for supermarket location
+            const cacheKey = getCacheKey("supermarket", origin.lat.toFixed(3), origin.lng.toFixed(3));
+            let nearest = getCache(cacheKey);
+
             try {
-                // Query Overpass for Coop and Migros supermarkets (excluding Coop Pronto and Migrolino)
-                const overpassQuery = `[out:json];(
-                    node["shop"="supermarket"]["name"~"^Coop$|^Coop [^P]|^Migros$|^Migros [^P]",i](around:2000,${origin.lat},${origin.lng});
-                    way["shop"="supermarket"]["name"~"^Coop$|^Coop [^P]|^Migros$|^Migros [^P]",i](around:2000,${origin.lat},${origin.lng});
-                );out center;`;
+                if (nearest) {
+                    console.log("[Cache] Supermarket hit");
+                } else {
+                    // Query Overpass for Coop and Migros supermarkets (excluding Coop Pronto and Migrolino)
+                    const overpassQuery = `[out:json];(
+                        node["shop"="supermarket"]["name"~"^Coop$|^Coop [^P]|^Migros$|^Migros [^P]",i](around:2000,${origin.lat},${origin.lng});
+                        way["shop"="supermarket"]["name"~"^Coop$|^Coop [^P]|^Migros$|^Migros [^P]",i](around:2000,${origin.lat},${origin.lng});
+                    );out center;`;
 
-                const response = await fetch("https://overpass-api.de/api/interpreter", {
-                    method: "POST",
-                    body: new URLSearchParams({ data: overpassQuery }),
-                    headers: { "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8" },
-                });
-
-                if (!response.ok) throw new Error("Overpass query failed");
-                const data = await response.json();
-                const elements = data.elements || [];
-
-                // Filter out Coop Pronto and Migrolino explicitly
-                const validSupermarkets = elements.filter((el) => {
-                    const name = el.tags?.name || "";
-                    const lowerName = name.toLowerCase();
-                    return !lowerName.includes("pronto") && !lowerName.includes("migrolino");
-                });
-
-                if (!validSupermarkets.length) {
-                    if (nameCell) nameCell.textContent = "🛒 No Coop or Migros within 2 km";
-                    [bikeCell, transitCell, carCell].forEach((cell) => {
-                        if (cell) {
-                            cell.textContent = "—";
-                            cell.className = "";
-                        }
+                    const response = await fetch("https://overpass-api.de/api/interpreter", {
+                        method: "POST",
+                        body: new URLSearchParams({ data: overpassQuery }),
+                        headers: { "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8" },
                     });
-                    return;
-                }
 
-                // Calculate distance to each supermarket and find nearest
-                const haversineMeters = (aLat, aLng, bLat, bLng) => {
-                    const R = 6371000;
-                    const toRad = (d) => (d * Math.PI) / 180;
-                    const dLat = toRad(bLat - aLat);
-                    const dLng = toRad(bLng - aLng);
-                    const s1 = Math.sin(dLat / 2);
-                    const s2 = Math.sin(dLng / 2);
-                    const aa = s1 * s1 + Math.cos(toRad(aLat)) * Math.cos(toRad(bLat)) * s2 * s2;
-                    return 2 * R * Math.asin(Math.sqrt(aa));
-                };
+                    if (!response.ok) throw new Error("Overpass query failed");
+                    const data = await response.json();
+                    const elements = data.elements || [];
 
-                const supermarketsWithDistance = validSupermarkets.map((el) => {
-                    const lat = el.lat || el.center?.lat;
-                    const lng = el.lon || el.center?.lon;
-                    const distance = haversineMeters(origin.lat, origin.lng, lat, lng);
-                    return {
-                        name: el.tags?.name || "Supermarket",
-                        lat,
-                        lng,
-                        distance,
-                        address: `${lat},${lng}`,
+                    // Filter out Coop Pronto and Migrolino explicitly
+                    const validSupermarkets = elements.filter((el) => {
+                        const name = el.tags?.name || "";
+                        const lowerName = name.toLowerCase();
+                        return !lowerName.includes("pronto") && !lowerName.includes("migrolino");
+                    });
+
+                    if (!validSupermarkets.length) {
+                        if (nameCell) nameCell.textContent = "🛒 No Coop or Migros within 2 km";
+                        [bikeCell, transitCell, carCell].forEach((cell) => {
+                            if (cell) {
+                                cell.textContent = "—";
+                                cell.className = "";
+                            }
+                        });
+                        return;
+                    }
+
+                    // Calculate distance to each supermarket and find nearest
+                    const haversineMeters = (aLat, aLng, bLat, bLng) => {
+                        const R = 6371000;
+                        const toRad = (d) => (d * Math.PI) / 180;
+                        const dLat = toRad(bLat - aLat);
+                        const dLng = toRad(bLng - aLng);
+                        const s1 = Math.sin(dLat / 2);
+                        const s2 = Math.sin(dLng / 2);
+                        const aa = s1 * s1 + Math.cos(toRad(aLat)) * Math.cos(toRad(bLat)) * s2 * s2;
+                        return 2 * R * Math.asin(Math.sqrt(aa));
                     };
-                });
 
-                supermarketsWithDistance.sort((a, b) => a.distance - b.distance);
-                const nearest = supermarketsWithDistance[0];
+                    const supermarketsWithDistance = validSupermarkets.map((el) => {
+                        const lat = el.lat || el.center?.lat;
+                        const lng = el.lon || el.center?.lon;
+                        const distance = haversineMeters(origin.lat, origin.lng, lat, lng);
+                        return {
+                            name: el.tags?.name || "Supermarket",
+                            lat,
+                            lng,
+                            distance,
+                            address: `${lat},${lng}`,
+                        };
+                    });
+
+                    supermarketsWithDistance.sort((a, b) => a.distance - b.distance);
+                    nearest = supermarketsWithDistance[0];
+                    setCache(cacheKey, nearest, CACHE_TTL.supermarket);
+                }
 
                 // Update name cell
                 if (nameCell) nameCell.textContent = `🛒 ${nearest.name}`;
@@ -1507,6 +1637,13 @@
         async function estimateFogProneness(lat, lng) {
             if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
                 throw new Error("Invalid coordinates");
+            }
+
+            const cacheKey = getCacheKey("fog", lat.toFixed(3), lng.toFixed(3));
+            const cached = getCache(cacheKey);
+            if (cached) {
+                console.log("[Cache] Fog hit");
+                return cached;
             }
 
             const radiusMeters = 2000;
@@ -1668,7 +1805,9 @@
                 ratingClass = "rating-good";
             }
 
-            return { unavailable: false, rating, ratingClass, score, reasons };
+            const result = { unavailable: false, rating, ratingClass, score, reasons };
+            setCache(cacheKey, result, CACHE_TTL.environmental);
+            return result;
         }
 
         async function updateFogProneness(origin) {
@@ -1726,6 +1865,32 @@
             return coords;
         }
 
+        function displayForestResult(td, data) {
+            td.textContent = `${data.forestRating} `;
+            td.classList.remove("status");
+            td.classList.add(data.forestRatingClass);
+            td.removeAttribute("data-loading");
+
+            const infoIcon = document.createElement("span");
+            infoIcon.className = "info-tooltip";
+            infoIcon.setAttribute("role", "button");
+            infoIcon.setAttribute("tabindex", "0");
+            infoIcon.setAttribute("aria-label", "More info");
+            infoIcon.textContent = "\u24D8";
+
+            const tooltipText = document.createElement("span");
+            tooltipText.className = "tooltip-text";
+            tooltipText.textContent = data.tooltipContent;
+            infoIcon.appendChild(tooltipText);
+
+            infoIcon.addEventListener("click", (e) => {
+                e.stopPropagation();
+                infoIcon.classList.toggle("active");
+            });
+
+            td.appendChild(infoIcon);
+        }
+
         async function updateNearbyForest(origin) {
             const tbody = document.getElementById("nearby-body");
             const combinedTd = tbody.querySelector('td[data-forest="combined"]');
@@ -1735,6 +1900,15 @@
 
             if (typeof turf === "undefined") {
                 combinedTd.textContent = "No data";
+                return;
+            }
+
+            // Check cache for forest data
+            const cacheKey = getCacheKey("forest", origin.lat.toFixed(3), origin.lng.toFixed(3));
+            const cached = getCache(cacheKey);
+            if (cached) {
+                console.log("[Cache] Forest hit");
+                displayForestResult(combinedTd, cached);
                 return;
             }
 
@@ -1840,32 +2014,37 @@
                 // Build tooltip text
                 const tooltipContent = `${largestPatchKm2.toFixed(1)} km² largest patch, ${percent.toFixed(0)}% coverage within 3 km`;
 
-                combinedTd.textContent = `${forestRating} `;
-                combinedTd.classList.remove("status");
-                combinedTd.classList.add(forestRatingClass);
-                combinedTd.removeAttribute("data-loading");
-
-                const infoIcon = document.createElement("span");
-                infoIcon.className = "info-tooltip";
-                infoIcon.setAttribute("role", "button");
-                infoIcon.setAttribute("tabindex", "0");
-                infoIcon.setAttribute("aria-label", "More info");
-                infoIcon.textContent = "\u24D8";
-
-                const tooltipText = document.createElement("span");
-                tooltipText.className = "tooltip-text";
-                tooltipText.textContent = tooltipContent;
-                infoIcon.appendChild(tooltipText);
-
-                infoIcon.addEventListener("click", (e) => {
-                    e.stopPropagation();
-                    infoIcon.classList.toggle("active");
-                });
-
-                combinedTd.appendChild(infoIcon);
+                const forestData = { forestRating, forestRatingClass, tooltipContent };
+                setCache(cacheKey, forestData, CACHE_TTL.environmental);
+                displayForestResult(combinedTd, forestData);
             } catch (err) {
                 combinedTd.textContent = "No data";
             }
+        }
+
+        function displayTrailResult(td, data) {
+            td.textContent = `${data.trailRating} `;
+            td.classList.remove("status");
+            td.classList.add(data.trailRatingClass);
+
+            const infoIcon = document.createElement("span");
+            infoIcon.className = "info-tooltip";
+            infoIcon.setAttribute("role", "button");
+            infoIcon.setAttribute("tabindex", "0");
+            infoIcon.setAttribute("aria-label", "More info");
+            infoIcon.textContent = "\u24D8";
+
+            const tooltipText = document.createElement("span");
+            tooltipText.className = "tooltip-text";
+            tooltipText.textContent = data.tooltipContent;
+            infoIcon.appendChild(tooltipText);
+
+            infoIcon.addEventListener("click", (e) => {
+                e.stopPropagation();
+                infoIcon.classList.toggle("active");
+            });
+
+            td.appendChild(infoIcon);
         }
 
         // --- Trail density ---
@@ -1878,6 +2057,15 @@
 
             if (typeof turf === "undefined") {
                 trailTd.textContent = "No data";
+                return;
+            }
+
+            // Check cache for trail data
+            const cacheKey = getCacheKey("trails", origin.lat.toFixed(3), origin.lng.toFixed(3));
+            const cached = getCache(cacheKey);
+            if (cached) {
+                console.log("[Cache] Trails hit");
+                displayTrailResult(trailTd, cached);
                 return;
             }
 
@@ -1936,28 +2124,10 @@
                     trailRatingClass = "rating-bad";
                 }
 
-                trailTd.textContent = `${trailRating} `;
-                trailTd.classList.remove("status");
-                trailTd.classList.add(trailRatingClass);
-
-                const infoIcon = document.createElement("span");
-                infoIcon.className = "info-tooltip";
-                infoIcon.setAttribute("role", "button");
-                infoIcon.setAttribute("tabindex", "0");
-                infoIcon.setAttribute("aria-label", "More info");
-                infoIcon.textContent = "\u24D8";
-
-                const tooltipText = document.createElement("span");
-                tooltipText.className = "tooltip-text";
-                tooltipText.textContent = `${totalLengthKm.toFixed(0)} km of trails within 2 km`;
-                infoIcon.appendChild(tooltipText);
-
-                infoIcon.addEventListener("click", (e) => {
-                    e.stopPropagation();
-                    infoIcon.classList.toggle("active");
-                });
-
-                trailTd.appendChild(infoIcon);
+                const tooltipContent = `${totalLengthKm.toFixed(0)} km of trails within 2 km`;
+                const trailData = { trailRating, trailRatingClass, tooltipContent };
+                setCache(cacheKey, trailData, CACHE_TTL.environmental);
+                displayTrailResult(trailTd, trailData);
             } catch (err) {
                 console.warn("Trail density failed:", err.message);
                 trailTd.textContent = "No data";
@@ -2148,6 +2318,14 @@
                 console.warn("Failed to load Google Maps API on init:", e.message);
             });
         }
+
+        // Clear cache button
+        document.getElementById("clear-cache-btn").addEventListener("click", () => {
+            if (confirm("Clear all cached data and API key settings?")) {
+                clearAllCache();
+                location.reload();
+            }
+        });
 
         // Load default address on page load
         addressInput.value = "Freilagerstrasse 99, 8047 Zürich";
