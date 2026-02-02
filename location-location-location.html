@@ -937,10 +937,13 @@
                 return cached;
             }
 
-            // Wait for Google API to load if loading is in progress
+            // Wait for Google API to load if loading is in progress (with timeout)
             if (googleMapsLoadPromise) {
                 try {
-                    await googleMapsLoadPromise;
+                    await Promise.race([
+                        googleMapsLoadPromise,
+                        new Promise((_, reject) => setTimeout(() => reject(new Error("timeout")), 5000))
+                    ]);
                 } catch (e) {
                     throw new Error("Google Maps API failed to load");
                 }
@@ -1506,6 +1509,13 @@
             const cacheKey = getCacheKey("supermarket", origin.lat.toFixed(3), origin.lng.toFixed(3));
             let nearest = getCache(cacheKey);
 
+            // Validate cached data has required coordinates
+            if (nearest && (!Number.isFinite(nearest.lat) || !Number.isFinite(nearest.lng))) {
+                console.warn("[Cache] Invalid supermarket data, clearing");
+                localStorage.removeItem(cacheKey);
+                nearest = null;
+            }
+
             try {
                 if (nearest) {
                     console.log("[Cache] Supermarket hit");
@@ -1556,18 +1566,31 @@
                         return 2 * R * Math.asin(Math.sqrt(aa));
                     };
 
-                    const supermarketsWithDistance = validSupermarkets.map((el) => {
-                        const lat = el.lat || el.center?.lat;
-                        const lng = el.lon || el.center?.lon;
-                        const distance = haversineMeters(origin.lat, origin.lng, lat, lng);
-                        return {
-                            name: el.tags?.name || "Supermarket",
-                            lat,
-                            lng,
-                            distance,
-                            address: `${lat},${lng}`,
-                        };
-                    });
+                    const supermarketsWithDistance = validSupermarkets
+                        .map((el) => {
+                            const lat = el.lat || el.center?.lat;
+                            const lng = el.lon || el.center?.lon;
+                            const distance = haversineMeters(origin.lat, origin.lng, lat, lng);
+                            return {
+                                name: el.tags?.name || "Supermarket",
+                                lat,
+                                lng,
+                                distance,
+                                address: `${lat},${lng}`,
+                            };
+                        })
+                        .filter((s) => Number.isFinite(s.lat) && Number.isFinite(s.lng));
+
+                    if (!supermarketsWithDistance.length) {
+                        if (nameCell) nameCell.textContent = "🛒 No Coop or Migros within 2 km";
+                        [bikeCell, transitCell, carCell].forEach((cell) => {
+                            if (cell) {
+                                cell.textContent = "—";
+                                cell.className = "";
+                            }
+                        });
+                        return;
+                    }
 
                     supermarketsWithDistance.sort((a, b) => a.distance - b.distance);
                     nearest = supermarketsWithDistance[0];
