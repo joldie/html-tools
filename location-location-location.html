@@ -433,12 +433,41 @@
         const API_KEY_STORAGE_KEY = "googleDistanceMatrixApiKey";
         const API_KEY_SKIPPED_KEY = "googleDistanceMatrixSkipped";
 
+        let googleMapsLoaded = false;
+        let googleMapsLoadPromise = null;
+
         function getStoredApiKey() {
             return localStorage.getItem(API_KEY_STORAGE_KEY) || null;
         }
 
         function isApiKeySkipped() {
             return localStorage.getItem(API_KEY_SKIPPED_KEY) === "true";
+        }
+
+        function loadGoogleMapsApi(apiKey) {
+            if (googleMapsLoaded) {
+                return Promise.resolve();
+            }
+            if (googleMapsLoadPromise) {
+                return googleMapsLoadPromise;
+            }
+            googleMapsLoadPromise = new Promise((resolve, reject) => {
+                const script = document.createElement("script");
+                script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places`;
+                script.async = true;
+                script.onload = () => {
+                    googleMapsLoaded = true;
+                    console.log("[Google Maps] API loaded successfully");
+                    resolve();
+                };
+                script.onerror = () => {
+                    googleMapsLoadPromise = null;
+                    console.error("[Google Maps] Failed to load API");
+                    reject(new Error("Failed to load Google Maps API"));
+                };
+                document.head.appendChild(script);
+            });
+            return googleMapsLoadPromise;
         }
 
         function showApiKeyModal() {
@@ -455,12 +484,23 @@
             const saveBtn = document.getElementById("save-api-key");
             const skipBtn = document.getElementById("skip-api-key");
 
-            saveBtn.addEventListener("click", () => {
+            saveBtn.addEventListener("click", async () => {
                 const key = input.value.trim();
                 if (key) {
                     localStorage.setItem(API_KEY_STORAGE_KEY, key);
                     localStorage.removeItem(API_KEY_SKIPPED_KEY);
                     hideApiKeyModal();
+                    // If Google Maps was already loaded, reload page to use new key
+                    if (googleMapsLoaded) {
+                        location.reload();
+                        return;
+                    }
+                    // Load Google Maps API with new key
+                    try {
+                        await loadGoogleMapsApi(key);
+                    } catch (e) {
+                        console.warn("Failed to load Google Maps API:", e.message);
+                    }
                     // Refresh travel times with new key
                     if (lastSearchedOrigin) {
                         updateTravelTimes(lastSearchedOrigin);
@@ -758,30 +798,42 @@
 
         async function fetchGoogleDistanceMatrix(origin, destination, mode) {
             // mode: "driving", "bicycling", or "transit"
-            const apiKey = getStoredApiKey();
-            if (!apiKey) {
-                throw new Error("No API key configured");
+            if (!googleMapsLoaded || typeof google === "undefined") {
+                throw new Error("Google Maps API not loaded");
             }
-            const params = new URLSearchParams({
-                origins: `${origin.lat},${origin.lng}`,
-                destinations: `${destination.lat},${destination.lng}`,
-                mode: mode,
-                key: apiKey,
+
+            const travelModeMap = {
+                driving: google.maps.TravelMode.DRIVING,
+                bicycling: google.maps.TravelMode.BICYCLING,
+                transit: google.maps.TravelMode.TRANSIT,
+            };
+
+            const service = new google.maps.DistanceMatrixService();
+
+            return new Promise((resolve, reject) => {
+                service.getDistanceMatrix(
+                    {
+                        origins: [new google.maps.LatLng(origin.lat, origin.lng)],
+                        destinations: [new google.maps.LatLng(destination.lat, destination.lng)],
+                        travelMode: travelModeMap[mode],
+                    },
+                    (response, status) => {
+                        if (status !== "OK") {
+                            console.error(`[Google API] Service error for ${mode}:`, status);
+                            reject(new Error(`Google API status: ${status}`));
+                            return;
+                        }
+                        const element = response.rows?.[0]?.elements?.[0];
+                        if (!element || element.status !== "OK") {
+                            console.error(`[Google API] Element error for ${mode}:`, element?.status);
+                            reject(new Error(`Google API element status: ${element?.status || "missing"}`));
+                            return;
+                        }
+                        console.log(`[Google API] Success for ${mode}: ${element.duration.value}s`);
+                        resolve(element.duration.value);
+                    }
+                );
             });
-            const url = `https://maps.googleapis.com/maps/api/distancematrix/json?${params.toString()}`;
-            const response = await fetch(url);
-            if (!response.ok) {
-                throw new Error(`Google API HTTP ${response.status}`);
-            }
-            const data = await response.json();
-            if (data.status !== "OK") {
-                throw new Error(`Google API status: ${data.status}`);
-            }
-            const element = data.rows?.[0]?.elements?.[0];
-            if (!element || element.status !== "OK") {
-                throw new Error(`Google API element status: ${element?.status || "missing"}`);
-            }
-            return element.duration.value; // duration in seconds
         }
 
         async function fetchTravelTimeWithFallback(origin, destination, mode) {
@@ -1892,6 +1944,14 @@
         // Show API key modal if no key and not skipped
         if (!getStoredApiKey() && !isApiKeySkipped()) {
             showApiKeyModal();
+        }
+
+        // Load Google Maps API if key is stored
+        const storedKey = getStoredApiKey();
+        if (storedKey) {
+            loadGoogleMapsApi(storedKey).catch((e) => {
+                console.warn("Failed to load Google Maps API on init:", e.message);
+            });
         }
 
         // Load default address on page load
