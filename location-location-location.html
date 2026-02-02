@@ -300,6 +300,7 @@
             <div class="link-box">
                 <strong>Additional maps:</strong>
                 <ul>
+                    <li><a id="osm-link" href="https://www.openstreetmap.org/" target="_blank" rel="noopener">OpenStreetMap</a></li>
                     <li><a id="shade-link" href="https://shademap.app/" target="_blank" rel="noopener">ShadeMap</a></li>
                     <li><a id="schweiz-link"
                             href="https://schweizmobil.ch/de/map?season=summer&bgLayer=pk&layers=&detours=no&photos=no&logos=no&shooting=yes&resolution=4.60&E=2679220&N=1247867"
@@ -452,6 +453,10 @@
                 return `https://www.google.com/maps?q=${lat},${lng}&z=${zoom}&output=embed`;
             }
             return `https://www.google.com/maps?q=${encodeURIComponent(query)}&z=${zoom}&output=embed`;
+        }
+
+        function buildOsmLink(lat, lng) {
+            return `https://www.openstreetmap.org/?mlat=${lat}&mlon=${lng}#map=16/${lat}/${lng}`;
         }
 
         function buildShadeMapLink(lat, lng) {
@@ -1597,6 +1602,7 @@
                 const origin = { lat: result.lat, lng: result.lng };
                 // Prefer embedding by coordinates to show the location pin only
                 mapFrame.src = buildGoogleMapEmbed(result.label, result.lat, result.lng);
+                document.getElementById("osm-link").href = buildOsmLink(result.lat, result.lng);
                 shadeLink.href = buildShadeMapLink(result.lat, result.lng);
                 if (typeof schweizLink !== "undefined" && schweizLink) {
                     schweizLink.href = buildSchweizmobilLink(result.lat, result.lng);
