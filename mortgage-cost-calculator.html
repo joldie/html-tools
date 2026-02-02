@@ -288,6 +288,19 @@
                 height: 100% !important;
             }
         }
+
+        .page-footer {
+            max-width: 1100px;
+            margin: 1.5rem auto 2rem;
+            padding: 0 1rem;
+            font-size: 0.75rem;
+            color: var(--muted);
+            text-align: center;
+        }
+
+        .page-footer a {
+            color: var(--accent);
+        }
     </style>
 </head>
 
@@ -425,6 +438,10 @@
             <button id="downloadBtn" class="secondary">Download report (.txt)</button>
         </section>
     </main>
+
+    <footer class="page-footer">
+        <a href="https://github.com/joldie/html-tools/blob/main/mortgage-cost-calculator.html" target="_blank" rel="noopener">Source code</a> · Last updated: 2026-02-02
+    </footer>
 
     <script>
         const currencyFormatter = new Intl.NumberFormat("de-CH", {
