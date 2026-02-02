@@ -416,7 +416,9 @@
     <div id="api-key-modal" class="modal-overlay hidden">
         <div class="modal">
             <h2>Google Maps API Key</h2>
-            <p>Enter your <span class="info-tooltip" role="button" tabindex="0" aria-label="More info">API key<span class="tooltip-text">Ask John for the key 😉</span></span> for accurate travel times. Without it, less accurate estimates will be shown.</p>
+            <p>Enter your API key for accurate travel times. Without it, less accurate estimates will be shown. <span
+                    class="info-tooltip" role="button" tabindex="0" aria-label="More info">&#9432;<span
+                        class="tooltip-text">Ask John for the key 😉</span></span></p>
             <input type="password" id="api-key-input" placeholder="Paste your API key here" />
             <div class="modal-buttons">
                 <button type="button" class="btn-secondary" id="skip-api-key">Skip</button>
@@ -475,6 +477,18 @@
             input.addEventListener("keydown", (e) => {
                 if (e.key === "Enter") {
                     saveBtn.click();
+                }
+            });
+
+            document.addEventListener("keydown", (e) => {
+                if (e.key === "Escape" && !modal.classList.contains("hidden")) {
+                    skipBtn.click();
+                }
+            });
+
+            modal.addEventListener("click", (e) => {
+                if (e.target === modal) {
+                    skipBtn.click();
                 }
             });
         }
@@ -997,7 +1011,7 @@
             const footer = document.getElementById("travel-times-footer");
             if (footer) {
                 footer.innerHTML = anyTravelTimeEstimate
-                    ? "* Estimate only &#8594; Click the links for live data"
+                    ? "* Estimate only &#8594; Click the link for live data"
                     : "";
             }
         }
