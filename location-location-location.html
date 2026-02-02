@@ -1373,6 +1373,13 @@
             searchStatus.textContent = "Searching…";
             searchButton.disabled = true;
 
+            // Reset Miscellaneous table to loading state immediately
+            const miscBody = document.getElementById("nearby-body");
+            miscBody.querySelectorAll('td[data-forest], td[data-trails], td[data-fog]').forEach((cell) => {
+                cell.textContent = "Loading…";
+                cell.className = "status";
+            });
+
             try {
                 const result = await geocode(query);
                 const origin = { lat: result.lat, lng: result.lng };
