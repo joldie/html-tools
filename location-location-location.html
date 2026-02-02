@@ -584,11 +584,11 @@
         // --- Cache management ---
         const CACHE_PREFIX = "locationCache_";
         const CACHE_TTL = {
-            geocode: 7 * 24 * 60 * 60 * 1000,       // 7 days for geocoding
-            reverseGeocode: 7 * 24 * 60 * 60 * 1000, // 7 days for reverse geocoding
-            routing: 24 * 60 * 60 * 1000,            // 1 day for travel times
-            environmental: 7 * 24 * 60 * 60 * 1000,  // 7 days for forest/trails/fog
-            supermarket: 3 * 24 * 60 * 60 * 1000,    // 3 days for supermarket data
+            geocode: 14 * 24 * 60 * 60 * 1000,       // 14 days
+            reverseGeocode: 14 * 24 * 60 * 60 * 1000, // 14 days
+            routing: 14 * 24 * 60 * 60 * 1000,        // 14 days
+            environmental: 14 * 24 * 60 * 60 * 1000,  // 14 days
+            supermarket: 14 * 24 * 60 * 60 * 1000,    // 14 days
         };
 
         function getCacheKey(type, ...params) {
