@@ -161,8 +161,9 @@
 
         th:nth-child(2),
         th:nth-child(3),
-        th:nth-child(4) {
-            width: 20%;
+        th:nth-child(4),
+        th:nth-child(5) {
+            width: 15%;
         }
 
         .table-wrapper {
@@ -427,6 +428,7 @@
                     <thead>
                         <tr>
                             <th></th>
+                            <th>🚶</th>
                             <th>🚲</th>
                             <th>🚌</th>
                             <th>🚗</th>
@@ -732,7 +734,12 @@
                 return "";
             }
             const minutes = Math.round(seconds / 60);
-            if (mode === "cycling") {
+            if (mode === "walking") {
+                // Walking: <15m green, 15-25m orange, >25m red
+                if (minutes < 15) return "time-green";
+                if (minutes <= 25) return "time-orange";
+                return "time-red";
+            } else if (mode === "cycling") {
                 // Bike: <30m green, 30-45m orange, >45m red
                 if (minutes < 30) return "time-green";
                 if (minutes <= 45) return "time-orange";
@@ -868,9 +875,12 @@
                 return cached;
             }
 
-            const baseUrl = profile === "cycling"
-                ? "https://routing.openstreetmap.de/routed-bike/route/v1/driving"
-                : "https://routing.openstreetmap.de/routed-car/route/v1/driving";
+            const baseUrls = {
+                cycling: "https://routing.openstreetmap.de/routed-bike/route/v1/driving",
+                walking: "https://routing.openstreetmap.de/routed-foot/route/v1/driving",
+                driving: "https://routing.openstreetmap.de/routed-car/route/v1/driving",
+            };
+            const baseUrl = baseUrls[profile] || baseUrls.driving;
             const url = `${baseUrl}/${origin.lng},${origin.lat};${destination.lng},${destination.lat}?overview=false`;
             const response = await fetch(url, { headers: { Accept: "application/json" } });
             if (!response.ok) {
@@ -957,6 +967,7 @@
                 driving: google.maps.TravelMode.DRIVING,
                 bicycling: google.maps.TravelMode.BICYCLING,
                 transit: google.maps.TravelMode.TRANSIT,
+                walking: google.maps.TravelMode.WALKING,
             };
 
             const service = new google.maps.DistanceMatrixService();
@@ -990,7 +1001,7 @@
 
         async function fetchTravelTimeWithFallback(origin, destination, mode) {
             // Returns { duration: number, isEstimate: boolean }
-            // mode: "driving", "bicycling", or "transit"
+            // mode: "driving", "bicycling", "transit", or "walking"
             try {
                 const duration = await fetchGoogleDistanceMatrix(origin, destination, mode);
                 return { duration, isEstimate: false };
@@ -1003,7 +1014,8 @@
                         const duration = parseTransitDuration(transitRaw);
                         return { duration, isEstimate: true };
                     } else {
-                        const profile = mode === "bicycling" ? "cycling" : "driving";
+                        const profileMap = { bicycling: "cycling", walking: "walking", driving: "driving" };
+                        const profile = profileMap[mode] || "driving";
                         const route = await fetchOsrmRoute(origin, destination, profile);
                         return { duration: route.duration, isEstimate: true };
                     }
@@ -1030,6 +1042,11 @@
                 nameCell.className = "text-left";
                 nameCell.textContent = destination.name;
                 row.appendChild(nameCell);
+
+                const walkCell = document.createElement("td");
+                walkCell.dataset.mode = "walking";
+                walkCell.textContent = "—";
+                row.appendChild(walkCell);
 
                 const bikeCell = document.createElement("td");
                 bikeCell.dataset.mode = "cycling";
@@ -1059,6 +1076,11 @@
             gymNameCell.textContent = "🧗 Nearest climbing gym";
             gymRow.appendChild(gymNameCell);
 
+            const gymWalkCell = document.createElement("td");
+            gymWalkCell.dataset.mode = "walking";
+            gymWalkCell.textContent = "—";
+            gymRow.appendChild(gymWalkCell);
+
             const gymBikeCell = document.createElement("td");
             gymBikeCell.dataset.mode = "cycling";
             gymBikeCell.textContent = "—";
@@ -1085,6 +1107,11 @@
             supermarketNameCell.dataset.supermarketName = "true";
             supermarketNameCell.textContent = "🛒 Nearest Coop or Migros...";
             supermarketRow.appendChild(supermarketNameCell);
+
+            const supermarketWalkCell = document.createElement("td");
+            supermarketWalkCell.dataset.mode = "walking";
+            supermarketWalkCell.textContent = "—";
+            supermarketRow.appendChild(supermarketWalkCell);
 
             const supermarketBikeCell = document.createElement("td");
             supermarketBikeCell.dataset.mode = "cycling";
@@ -1250,14 +1277,15 @@
         async function updateTravelTimes(origin) {
             anyTravelTimeEstimate = false;
 
-            const rows = Array.from(travelTimesBody.querySelectorAll("tr[data-destination-id]"));
-            rows.forEach((row) => {
-                const cells = row.querySelectorAll("td[data-mode]");
-                cells.forEach((cell) => {
+            // Set loading state only for destination rows (not gym/supermarket), excluding walking
+            for (const destination of destinations) {
+                const row = travelTimesBody.querySelector(`tr[data-destination-id="${destination.id}"]`);
+                if (!row) continue;
+                row.querySelectorAll('td[data-mode]:not([data-mode="walking"])').forEach((cell) => {
                     cell.textContent = "Loading…";
                     cell.className = "status";
                 });
-            });
+            }
 
             const resolvedDestinations = {};
             for (const destination of destinations) {
@@ -1367,13 +1395,14 @@
             const tbody = document.getElementById("nearby-body");
             const gymRow = travelTimesBody.querySelector('tr[data-destination-id="climbing-gym"]');
             const gymNameCell = gymRow?.querySelector('td[data-gym-name="true"]');
+            const gymWalkCell = gymRow?.querySelector('td[data-mode="walking"]');
             const gymBikeCell = gymRow?.querySelector('td[data-mode="cycling"]');
             const gymTransitCell = gymRow?.querySelector('td[data-mode="transit"]');
             const gymCarCell = gymRow?.querySelector('td[data-mode="driving"]');
 
             // Set loading state for gym row
             if (gymNameCell) gymNameCell.textContent = "🧗 Nearest climbing gym...";
-            [gymBikeCell, gymTransitCell, gymCarCell].forEach((cell) => {
+            [gymWalkCell, gymBikeCell, gymTransitCell, gymCarCell].forEach((cell) => {
                 if (cell) {
                     cell.textContent = "Loading…";
                     cell.className = "status";
@@ -1409,7 +1438,7 @@
 
                 const results = (await Promise.all(routePromises)).filter(Boolean);
                 if (!results.length) {
-                    [gymBikeCell, gymTransitCell, gymCarCell].forEach((cell) => {
+                    [gymWalkCell, gymBikeCell, gymTransitCell, gymCarCell].forEach((cell) => {
                         if (cell) {
                             cell.textContent = "Unavailable";
                             cell.className = "status";
@@ -1428,15 +1457,29 @@
                 const originStr = `${origin.lat},${origin.lng}`;
                 const destinationStr = closestGym.gym.address;
 
-                const [cyclingResult, transitResult, drivingResult] = await Promise.all([
+                const [walkingResult, cyclingResult, transitResult, drivingResult] = await Promise.all([
+                    fetchTravelTimeWithFallback(origin, closestGym.gym, "walking"),
                     fetchTravelTimeWithFallback(origin, closestGym.gym, "bicycling"),
                     fetchTravelTimeWithFallback(origin, closestGym.gym, "transit"),
                     fetchTravelTimeWithFallback(origin, closestGym.gym, "driving"),
                 ]);
 
-                if (cyclingResult.isEstimate || transitResult.isEstimate || drivingResult.isEstimate) {
+                if (walkingResult.isEstimate || cyclingResult.isEstimate || transitResult.isEstimate || drivingResult.isEstimate) {
                     anyTravelTimeEstimate = true;
                     updateTravelTimesFooter();
+                }
+
+                // Walk cell
+                if (gymWalkCell) {
+                    gymWalkCell.innerHTML = "";
+                    gymWalkCell.className = "";
+                    const walkLink = document.createElement("a");
+                    walkLink.className = `time-link ${getTimeColorClass(walkingResult.duration, "walking")}`;
+                    walkLink.href = buildDirectionsLink(originStr, destinationStr, "walking");
+                    walkLink.target = "_blank";
+                    walkLink.rel = "noopener";
+                    walkLink.textContent = formatDuration(walkingResult.duration) + (walkingResult.isEstimate ? "*" : "");
+                    gymWalkCell.appendChild(walkLink);
                 }
 
                 // Bike cell
@@ -1479,7 +1522,7 @@
                 }
 
             } catch (err) {
-                [gymBikeCell, gymTransitCell, gymCarCell, forestTd, trailTd, fogTd].forEach((cell) => {
+                [gymWalkCell, gymBikeCell, gymTransitCell, gymCarCell, forestTd, trailTd, fogTd].forEach((cell) => {
                     if (cell) {
                         cell.textContent = "Unavailable";
                         cell.className = "status";
@@ -1492,13 +1535,14 @@
         async function updateNearbySupermarket(origin) {
             const supermarketRow = travelTimesBody.querySelector('tr[data-destination-id="supermarket"]');
             const nameCell = supermarketRow?.querySelector('td[data-supermarket-name="true"]');
+            const walkCell = supermarketRow?.querySelector('td[data-mode="walking"]');
             const bikeCell = supermarketRow?.querySelector('td[data-mode="cycling"]');
             const transitCell = supermarketRow?.querySelector('td[data-mode="transit"]');
             const carCell = supermarketRow?.querySelector('td[data-mode="driving"]');
 
             // Set loading state
             if (nameCell) nameCell.textContent = "🛒 Nearest Coop or Migros";
-            [bikeCell, transitCell, carCell].forEach((cell) => {
+            [walkCell, bikeCell, transitCell, carCell].forEach((cell) => {
                 if (cell) {
                     cell.textContent = "Loading…";
                     cell.className = "status";
@@ -1545,7 +1589,7 @@
 
                     if (!validSupermarkets.length) {
                         if (nameCell) nameCell.textContent = "🛒 No Coop or Migros within 2 km";
-                        [bikeCell, transitCell, carCell].forEach((cell) => {
+                        [walkCell, bikeCell, transitCell, carCell].forEach((cell) => {
                             if (cell) {
                                 cell.textContent = "—";
                                 cell.className = "";
@@ -1583,7 +1627,7 @@
 
                     if (!supermarketsWithDistance.length) {
                         if (nameCell) nameCell.textContent = "🛒 No Coop or Migros within 2 km";
-                        [bikeCell, transitCell, carCell].forEach((cell) => {
+                        [walkCell, bikeCell, transitCell, carCell].forEach((cell) => {
                             if (cell) {
                                 cell.textContent = "—";
                                 cell.className = "";
@@ -1604,15 +1648,29 @@
                 const originStr = `${origin.lat},${origin.lng}`;
                 const destinationStr = nearest.address;
 
-                const [cyclingResult, transitResult, drivingResult] = await Promise.all([
+                const [walkingResult, cyclingResult, transitResult, drivingResult] = await Promise.all([
+                    fetchTravelTimeWithFallback(origin, nearest, "walking"),
                     fetchTravelTimeWithFallback(origin, nearest, "bicycling"),
                     fetchTravelTimeWithFallback(origin, nearest, "transit"),
                     fetchTravelTimeWithFallback(origin, nearest, "driving"),
                 ]);
 
-                if (cyclingResult.isEstimate || transitResult.isEstimate || drivingResult.isEstimate) {
+                if (walkingResult.isEstimate || cyclingResult.isEstimate || transitResult.isEstimate || drivingResult.isEstimate) {
                     anyTravelTimeEstimate = true;
                     updateTravelTimesFooter();
+                }
+
+                // Walk cell
+                if (walkCell) {
+                    walkCell.innerHTML = "";
+                    walkCell.className = "";
+                    const walkLink = document.createElement("a");
+                    walkLink.className = `time-link ${getTimeColorClass(walkingResult.duration, "walking")}`;
+                    walkLink.href = buildDirectionsLink(originStr, destinationStr, "walking");
+                    walkLink.target = "_blank";
+                    walkLink.rel = "noopener";
+                    walkLink.textContent = formatDuration(walkingResult.duration) + (walkingResult.isEstimate ? "*" : "");
+                    walkCell.appendChild(walkLink);
                 }
 
                 // Bike cell
@@ -1656,7 +1714,7 @@
 
             } catch (err) {
                 console.warn("Supermarket search failed:", err.message);
-                [bikeCell, transitCell, carCell].forEach((cell) => {
+                [walkCell, bikeCell, transitCell, carCell].forEach((cell) => {
                     if (cell) {
                         cell.textContent = "Unavailable";
                         cell.className = "status";
