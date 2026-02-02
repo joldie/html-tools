@@ -937,6 +937,15 @@
                 return cached;
             }
 
+            // Wait for Google API to load if loading is in progress
+            if (googleMapsLoadPromise) {
+                try {
+                    await googleMapsLoadPromise;
+                } catch (e) {
+                    throw new Error("Google Maps API failed to load");
+                }
+            }
+
             if (!googleMapsLoaded || typeof google === "undefined") {
                 throw new Error("Google Maps API not loaded");
             }
