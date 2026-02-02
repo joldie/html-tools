@@ -34,7 +34,7 @@ Every HTML tool must include a footer with:
 Example footer HTML:
 ```html
 <footer class="page-footer">
-    <a href="https://github.com/joldie/html-tools/blob/main/FILENAME.html" target="_blank" rel="noopener">Source code</a> · Last updated: YYYY-MM-DD
+    <a href="https://joldie.github.io/html-tools/" target="_blank" rel="noopener">Home page</a> · <a href="https://github.com/joldie/html-tools/blob/main/FILENAME.html" target="_blank" rel="noopener">Source code</a> · Last updated: YYYY-MM-DD
 </footer>
 ```
 
