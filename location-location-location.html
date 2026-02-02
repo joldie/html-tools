@@ -405,7 +405,7 @@
                 <table>
                     <thead>
                         <tr>
-                            <th class="text-left">Destination</th>
+                            <th></th>
                             <th>🚲</th>
                             <th>🚌</th>
                             <th>🚗</th>
@@ -943,6 +943,33 @@
             gymRow.appendChild(gymCarCell);
 
             travelTimesBody.appendChild(gymRow);
+
+            // Add supermarket row
+            const supermarketRow = document.createElement("tr");
+            supermarketRow.dataset.destinationId = "supermarket";
+
+            const supermarketNameCell = document.createElement("td");
+            supermarketNameCell.className = "text-left";
+            supermarketNameCell.dataset.supermarketName = "true";
+            supermarketNameCell.textContent = "🛒 Nearest Coop or Migros";
+            supermarketRow.appendChild(supermarketNameCell);
+
+            const supermarketBikeCell = document.createElement("td");
+            supermarketBikeCell.dataset.mode = "cycling";
+            supermarketBikeCell.textContent = "—";
+            supermarketRow.appendChild(supermarketBikeCell);
+
+            const supermarketTransitCell = document.createElement("td");
+            supermarketTransitCell.dataset.mode = "transit";
+            supermarketTransitCell.textContent = "—";
+            supermarketRow.appendChild(supermarketTransitCell);
+
+            const supermarketCarCell = document.createElement("td");
+            supermarketCarCell.dataset.mode = "driving";
+            supermarketCarCell.textContent = "—";
+            supermarketRow.appendChild(supermarketCarCell);
+
+            travelTimesBody.appendChild(supermarketRow);
         }
 
         function renderMiscTable() {
@@ -1321,6 +1348,154 @@
 
             } catch (err) {
                 [gymBikeCell, gymTransitCell, gymCarCell, forestTd, trailTd, fogTd].forEach((cell) => {
+                    if (cell) {
+                        cell.textContent = "Unavailable";
+                        cell.className = "status";
+                    }
+                });
+            }
+        }
+
+        // --- Nearby supermarket (Coop or Migros) ---
+        async function updateNearbySupermarket(origin) {
+            const supermarketRow = travelTimesBody.querySelector('tr[data-destination-id="supermarket"]');
+            const nameCell = supermarketRow?.querySelector('td[data-supermarket-name="true"]');
+            const bikeCell = supermarketRow?.querySelector('td[data-mode="cycling"]');
+            const transitCell = supermarketRow?.querySelector('td[data-mode="transit"]');
+            const carCell = supermarketRow?.querySelector('td[data-mode="driving"]');
+
+            // Set loading state
+            if (nameCell) nameCell.textContent = "🛒 Nearest Coop or Migros";
+            [bikeCell, transitCell, carCell].forEach((cell) => {
+                if (cell) {
+                    cell.textContent = "Loading…";
+                    cell.className = "status";
+                }
+            });
+
+            try {
+                // Query Overpass for Coop and Migros supermarkets (excluding Coop Pronto and Migrolino)
+                const overpassQuery = `[out:json];(
+                    node["shop"="supermarket"]["name"~"^Coop$|^Coop [^P]|^Migros$|^Migros [^P]",i](around:3000,${origin.lat},${origin.lng});
+                    way["shop"="supermarket"]["name"~"^Coop$|^Coop [^P]|^Migros$|^Migros [^P]",i](around:3000,${origin.lat},${origin.lng});
+                );out center;`;
+
+                const response = await fetch("https://overpass-api.de/api/interpreter", {
+                    method: "POST",
+                    body: new URLSearchParams({ data: overpassQuery }),
+                    headers: { "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8" },
+                });
+
+                if (!response.ok) throw new Error("Overpass query failed");
+                const data = await response.json();
+                const elements = data.elements || [];
+
+                // Filter out Coop Pronto and Migrolino explicitly
+                const validSupermarkets = elements.filter((el) => {
+                    const name = el.tags?.name || "";
+                    const lowerName = name.toLowerCase();
+                    return !lowerName.includes("pronto") && !lowerName.includes("migrolino");
+                });
+
+                if (!validSupermarkets.length) {
+                    if (nameCell) nameCell.textContent = "🛒 No Coop or Migros within 3 km";
+                    [bikeCell, transitCell, carCell].forEach((cell) => {
+                        if (cell) {
+                            cell.textContent = "—";
+                            cell.className = "";
+                        }
+                    });
+                    return;
+                }
+
+                // Calculate distance to each supermarket and find nearest
+                const haversineMeters = (aLat, aLng, bLat, bLng) => {
+                    const R = 6371000;
+                    const toRad = (d) => (d * Math.PI) / 180;
+                    const dLat = toRad(bLat - aLat);
+                    const dLng = toRad(bLng - aLng);
+                    const s1 = Math.sin(dLat / 2);
+                    const s2 = Math.sin(dLng / 2);
+                    const aa = s1 * s1 + Math.cos(toRad(aLat)) * Math.cos(toRad(bLat)) * s2 * s2;
+                    return 2 * R * Math.asin(Math.sqrt(aa));
+                };
+
+                const supermarketsWithDistance = validSupermarkets.map((el) => {
+                    const lat = el.lat || el.center?.lat;
+                    const lng = el.lon || el.center?.lon;
+                    const distance = haversineMeters(origin.lat, origin.lng, lat, lng);
+                    return {
+                        name: el.tags?.name || "Supermarket",
+                        lat,
+                        lng,
+                        distance,
+                        address: `${lat},${lng}`,
+                    };
+                });
+
+                supermarketsWithDistance.sort((a, b) => a.distance - b.distance);
+                const nearest = supermarketsWithDistance[0];
+
+                // Update name cell
+                if (nameCell) nameCell.textContent = `🛒 ${nearest.name}`;
+
+                // Fetch travel times
+                const originStr = `${origin.lat},${origin.lng}`;
+                const destinationStr = nearest.address;
+
+                const [cyclingResult, transitResult, drivingResult] = await Promise.all([
+                    fetchTravelTimeWithFallback(origin, nearest, "bicycling"),
+                    fetchTravelTimeWithFallback(origin, nearest, "transit"),
+                    fetchTravelTimeWithFallback(origin, nearest, "driving"),
+                ]);
+
+                if (cyclingResult.isEstimate || transitResult.isEstimate || drivingResult.isEstimate) {
+                    anyTravelTimeEstimate = true;
+                    updateTravelTimesFooter();
+                }
+
+                // Bike cell
+                if (bikeCell) {
+                    bikeCell.innerHTML = "";
+                    bikeCell.className = "";
+                    const bikeLink = document.createElement("a");
+                    bikeLink.className = `time-link ${getTimeColorClass(cyclingResult.duration, "cycling")}`;
+                    bikeLink.href = buildDirectionsLink(originStr, destinationStr, "bicycling");
+                    bikeLink.target = "_blank";
+                    bikeLink.rel = "noopener";
+                    bikeLink.textContent = formatDuration(cyclingResult.duration) + (cyclingResult.isEstimate ? "*" : "");
+                    bikeCell.appendChild(bikeLink);
+                }
+
+                // Transit cell
+                if (transitCell) {
+                    transitCell.innerHTML = "";
+                    transitCell.className = "";
+                    const transitLink = document.createElement("a");
+                    transitLink.className = `time-link ${getTimeColorClass(transitResult.duration, "transit")}`;
+                    transitLink.href = buildDirectionsLink(originStr, destinationStr, "transit");
+                    transitLink.target = "_blank";
+                    transitLink.rel = "noopener";
+                    transitLink.textContent = formatDuration(transitResult.duration) + (transitResult.isEstimate ? "*" : "");
+                    transitCell.appendChild(transitLink);
+                }
+
+                // Car cell
+                if (carCell) {
+                    carCell.innerHTML = "";
+                    carCell.className = "";
+                    const carLink = document.createElement("a");
+                    carLink.className = `time-link ${getTimeColorClass(drivingResult.duration, "driving")}`;
+                    carLink.href = buildDirectionsLink(originStr, destinationStr, "driving");
+                    carLink.target = "_blank";
+                    carLink.rel = "noopener";
+                    carLink.textContent = formatDuration(drivingResult.duration) + (drivingResult.isEstimate ? "*" : "");
+                    carCell.appendChild(carLink);
+                }
+
+            } catch (err) {
+                console.warn("Supermarket search failed:", err.message);
+                [bikeCell, transitCell, carCell].forEach((cell) => {
                     if (cell) {
                         cell.textContent = "Unavailable";
                         cell.className = "status";
@@ -1917,6 +2092,7 @@
                 searchStatus.textContent = query;
                 await updateTravelTimes(origin);
                 await updateNearbyGyms(origin);
+                await updateNearbySupermarket(origin);
                 await updateNearbyForest(origin);
                 await updateFogProneness(origin);
                 await updateTrailDensity(origin);
