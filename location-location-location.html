@@ -1080,7 +1080,7 @@
             const supermarketNameCell = document.createElement("td");
             supermarketNameCell.className = "text-left";
             supermarketNameCell.dataset.supermarketName = "true";
-            supermarketNameCell.textContent = "🛒 Nearest Coop or Migros";
+            supermarketNameCell.textContent = "🛒 Nearest Coop or Migros...";
             supermarketRow.appendChild(supermarketNameCell);
 
             const supermarketBikeCell = document.createElement("td");
@@ -1369,7 +1369,7 @@
             const gymCarCell = gymRow?.querySelector('td[data-mode="driving"]');
 
             // Set loading state for gym row
-            if (gymNameCell) gymNameCell.textContent = "🧗 Nearest climbing gym";
+            if (gymNameCell) gymNameCell.textContent = "🧗 Nearest climbing gym...";
             [gymBikeCell, gymTransitCell, gymCarCell].forEach((cell) => {
                 if (cell) {
                     cell.textContent = "Loading…";
