@@ -1376,8 +1376,8 @@
             try {
                 // Query Overpass for Coop and Migros supermarkets (excluding Coop Pronto and Migrolino)
                 const overpassQuery = `[out:json];(
-                    node["shop"="supermarket"]["name"~"^Coop$|^Coop [^P]|^Migros$|^Migros [^P]",i](around:3000,${origin.lat},${origin.lng});
-                    way["shop"="supermarket"]["name"~"^Coop$|^Coop [^P]|^Migros$|^Migros [^P]",i](around:3000,${origin.lat},${origin.lng});
+                    node["shop"="supermarket"]["name"~"^Coop$|^Coop [^P]|^Migros$|^Migros [^P]",i](around:2000,${origin.lat},${origin.lng});
+                    way["shop"="supermarket"]["name"~"^Coop$|^Coop [^P]|^Migros$|^Migros [^P]",i](around:2000,${origin.lat},${origin.lng});
                 );out center;`;
 
                 const response = await fetch("https://overpass-api.de/api/interpreter", {
@@ -1398,7 +1398,7 @@
                 });
 
                 if (!validSupermarkets.length) {
-                    if (nameCell) nameCell.textContent = "🛒 No Coop or Migros within 3 km";
+                    if (nameCell) nameCell.textContent = "🛒 No Coop or Migros within 2 km";
                     [bikeCell, transitCell, carCell].forEach((cell) => {
                         if (cell) {
                             cell.textContent = "—";
