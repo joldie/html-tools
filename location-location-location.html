@@ -342,6 +342,50 @@
             }
         ];
 
+        // Municipal tax multipliers for Canton Zurich (2026)
+        // Source: https://opendata.swiss/de/dataset/steuerfusse-der-zurcher-gemeinden-fur-naturliche-und-juristische-personen
+        const taxMultipliers = {
+            "Aeugst a.A.": 92, "Affoltern a.A.": 122, "Bonstetten": 106, "Hausen a.A.": 112,
+            "Hedingen": 100, "Kappel a.A.": 102, "Knonau": 116, "Maschwanden": 128,
+            "Mettmenstetten": 98, "Obfelden": 118, "Ottenbach": 115, "Rifferswil": 120,
+            "Stallikon": 101, "Wettswil a.A.": 89, "Benken": 110, "Berg a.I.": 98,
+            "Buch a.I.": 106, "Dachsen": 111, "Dorf": 99, "Feuerthalen": 114,
+            "Flaach": 107, "Flurlingen": 111, "Henggart": 111, "Kleinandelfingen": 118,
+            "Laufen-Uhwiesen": 104, "Marthalen": 107, "Ossingen": 113, "Rheinau": 112,
+            "Thalheim a.d.Th.": 117, "Trüllikon": 110, "Truttikon": 107, "Volken": 111,
+            "Bachenbülach": 106, "Bassersdorf": 114, "Bülach": 114, "Eglisau": 113,
+            "Embrach": 112, "Freienstein-Teufen": 99, "Glattfelden": 120, "Höri": 110,
+            "Hüntwangen": 108, "Kloten": 100, "Lufingen": 97, "Nürensdorf": 90,
+            "Oberembrach": 117, "Opfikon": 94, "Rafz": 113, "Rorbas": 103,
+            "Wasterkingen": 116, "Wil": 97, "Winkel": 76, "Bachs": 128,
+            "Boppelsen": 94, "Buchs": 105, "Dällikon": 107, "Dänikon": 120,
+            "Dielsdorf": 105, "Neerach": 77, "Niederglatt": 106, "Niederhasli": 112,
+            "Niederweningen": 100, "Oberglatt": 119, "Oberweningen": 94, "Otelfingen": 108,
+            "Regensberg": 115, "Regensdorf": 117, "Rümlang": 113, "Schleinikon": 106,
+            "Schöfflisdorf": 94, "Stadel": 111, "Steinmaur": 108, "Weiach": 96,
+            "Bäretswil": 104, "Bubikon": 118, "Dürnten": 113, "Fischenthal": 122,
+            "Gossau": 117, "Grüningen": 116, "Hinwil": 116, "Rüti": 119,
+            "Wald": 122, "Wetzikon": 119, "Adliswil": 104, "Kilchberg": 72,
+            "Langnau a.A.": 106, "Oberrieden": 84, "Richterswil": 99, "Rüschlikon": 75,
+            "Thalwil": 78, "Erlenbach": 76, "Herrliberg": 73, "Hombrechtikon": 113,
+            "Küsnacht": 73, "Männedorf": 87, "Meilen": 79, "Oetwil a.S.": 114,
+            "Stäfa": 83, "Uetikon a.S.": 84, "Zumikon": 71, "Zollikon": 76,
+            "Fehraltorf": 111, "Lindau": 106, "Pfäffikon": 110, "Russikon": 113,
+            "Weisslingen": 116, "Wila": 122, "Wildberg": 124, "Dübendorf": 92,
+            "Egg": 101, "Fällanden": 99, "Greifensee": 101, "Maur": 81,
+            "Mönchaltorf": 108, "Schwerzenbach": 103, "Uster": 112, "Volketswil": 101,
+            "Wangen-Brüttisellen": 101, "Altikon": 114, "Brütten": 85, "Dättlikon": 112,
+            "Dinhard": 90, "Ellikon a.d.Th.": 117, "Elsau": 117, "Hagenbuch": 121,
+            "Hettlingen": 97, "Neftenbach": 98, "Pfungen": 112, "Rickenbach": 112,
+            "Schlatt": 123, "Seuzach": 100, "Turbenthal": 122, "Winterthur": 125,
+            "Zell": 115, "Aesch": 91, "Birmensdorf": 112, "Dietikon": 121,
+            "Geroldswil": 112, "Oberengstringen": 109, "Oetwil a.d.L.": 107, "Schlieren": 111,
+            "Uitikon": 78, "Unterengstringen": 102, "Urdorf": 115, "Weiningen": 107,
+            "Zürich": 119, "Andelfingen": 119, "Stammheim": 112, "Wädenswil": 102,
+            "Elgg": 119, "Horgen": 90, "Illnau-Effretikon": 113, "Bauma": 120,
+            "Wiesendangen": 86
+        };
+
         function formatDuration(seconds) {
             if (!Number.isFinite(seconds)) {
                 return "—";
@@ -448,6 +492,22 @@
                 lng: Number.parseFloat(data[0].lon),
                 label: data[0].display_name,
             };
+        }
+
+        async function reverseGeocode(lat, lng) {
+            const response = await fetch(
+                `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&addressdetails=1`,
+                { headers: { Accept: "application/json" } }
+            );
+            if (!response.ok) {
+                throw new Error("Reverse geocoding failed");
+            }
+            const data = await response.json();
+            if (!data.address) {
+                throw new Error("No address found");
+            }
+            // Swiss municipalities can be in different fields depending on the location
+            return data.address.municipality || data.address.city || data.address.town || data.address.village || null;
         }
 
         async function fetchOsrmRoute(origin, destination, profile = "driving") {
@@ -576,6 +636,8 @@
             forestTr.appendChild(forestEmojiTd);
 
             const forestLabelTd = document.createElement("td");
+            forestLabelTd.className = "text-left";
+            forestLabelTd.textContent = "Nearby forest cover";
             forestTr.appendChild(forestLabelTd);
 
             const forestInfoTd = document.createElement("td");
@@ -595,6 +657,8 @@
             trailTr.appendChild(trailEmojiTd);
 
             const trailLabelTd = document.createElement("td");
+            trailLabelTd.className = "text-left";
+            trailLabelTd.textContent = "Trail density";
             trailTr.appendChild(trailLabelTd);
 
             const trailInfoTd = document.createElement("td");
@@ -614,6 +678,8 @@
             fogTr.appendChild(fogEmojiTd);
 
             const fogLabelTd = document.createElement("td");
+            fogLabelTd.className = "text-left";
+            fogLabelTd.textContent = "Fog proneness";
             fogTr.appendChild(fogLabelTd);
 
             const fogInfoTd = document.createElement("td");
@@ -623,6 +689,27 @@
             fogTr.appendChild(fogInfoTd);
 
             tbody.appendChild(fogTr);
+
+            // Tax multiplier row
+            const taxTr = document.createElement("tr");
+            taxTr.dataset.miscRow = "tax";
+
+            const taxEmojiTd = document.createElement("td");
+            taxEmojiTd.textContent = "💰";
+            taxTr.appendChild(taxEmojiTd);
+
+            const taxLabelTd = document.createElement("td");
+            taxLabelTd.className = "text-left";
+            taxLabelTd.textContent = "Tax multiplier";
+            taxTr.appendChild(taxLabelTd);
+
+            const taxInfoTd = document.createElement("td");
+            taxInfoTd.dataset.tax = "value";
+            taxInfoTd.className = "status";
+            taxInfoTd.textContent = "Loading…";
+            taxTr.appendChild(taxInfoTd);
+
+            tbody.appendChild(taxTr);
         }
 
         function updateCellLink(cell, origin, destination, mode) {
@@ -1364,6 +1451,103 @@
             }
         }
 
+        async function updateTaxMultiplier(origin) {
+            const tbody = document.getElementById("nearby-body");
+            const taxTd = tbody.querySelector('td[data-tax="value"]');
+            if (!taxTd) return;
+
+            taxTd.textContent = "Loading…";
+            taxTd.className = "status";
+
+            try {
+                const municipality = await reverseGeocode(origin.lat, origin.lng);
+                if (!municipality) {
+                    taxTd.textContent = "Unknown municipality";
+                    return;
+                }
+
+                // Try to find matching municipality in tax data
+                let multiplier = taxMultipliers[municipality];
+                let matchedName = municipality;
+
+                if (multiplier === undefined) {
+                    // Build searchable name: normalize umlauts and convert abbreviations
+                    const searchName = municipality
+                        .replace(/ü/g, "u").replace(/Ü/g, "U")
+                        .replace(/ä/g, "a").replace(/Ä/g, "A")
+                        .replace(/ö/g, "o").replace(/Ö/g, "O")
+                        .replace(/ am Albis$/i, "")
+                        .replace(/ am Irchel$/i, "")
+                        .replace(/ an der Thur$/i, "")
+                        .replace(/ am See$/i, "")
+                        .replace(/ an der Limmat$/i, "")
+                        .toLowerCase();
+
+                    // Search through tax data keys
+                    for (const [name, value] of Object.entries(taxMultipliers)) {
+                        const compareName = name
+                            .replace(/ü/g, "u").replace(/Ü/g, "U")
+                            .replace(/ä/g, "a").replace(/Ä/g, "A")
+                            .replace(/ö/g, "o").replace(/Ö/g, "O")
+                            .replace(/ a\.A\.$/i, "")
+                            .replace(/ a\.I\.$/i, "")
+                            .replace(/ a\.d\.Th\.$/i, "")
+                            .replace(/ a\.S\.$/i, "")
+                            .replace(/ a\.d\.L\.$/i, "")
+                            .toLowerCase();
+
+                        if (searchName === compareName) {
+                            multiplier = value;
+                            matchedName = name;
+                            break;
+                        }
+                    }
+                }
+
+                if (multiplier === undefined) {
+                    taxTd.textContent = `${municipality} (no data)`;
+                    taxTd.className = "status";
+                    return;
+                }
+
+                // Color based on multiplier value (lower is better)
+                let ratingClass;
+                if (multiplier <= 85) {
+                    ratingClass = "rating-good";
+                } else if (multiplier <= 110) {
+                    ratingClass = "rating-moderate";
+                } else {
+                    ratingClass = "rating-bad";
+                }
+
+                taxTd.textContent = `${multiplier}% `;
+                taxTd.classList.remove("status");
+                taxTd.classList.add(ratingClass);
+
+                const infoIcon = document.createElement("span");
+                infoIcon.className = "info-tooltip";
+                infoIcon.setAttribute("role", "button");
+                infoIcon.setAttribute("tabindex", "0");
+                infoIcon.setAttribute("aria-label", "More info");
+                infoIcon.textContent = "\u24D8";
+
+                const tooltipText = document.createElement("span");
+                tooltipText.className = "tooltip-text";
+                tooltipText.textContent = `Gemeinde: ${matchedName}`;
+                infoIcon.appendChild(tooltipText);
+
+                infoIcon.addEventListener("click", (e) => {
+                    e.stopPropagation();
+                    infoIcon.classList.toggle("active");
+                });
+
+                taxTd.appendChild(infoIcon);
+            } catch (err) {
+                console.warn("Tax multiplier lookup failed:", err.message);
+                taxTd.textContent = "No data";
+            }
+        }
+
         async function handleSearch() {
             const query = normalizeQuery(addressInput.value);
             if (!query) {
@@ -1375,7 +1559,7 @@
 
             // Reset Miscellaneous table to loading state immediately
             const miscBody = document.getElementById("nearby-body");
-            miscBody.querySelectorAll('td[data-forest], td[data-trails], td[data-fog]').forEach((cell) => {
+            miscBody.querySelectorAll('td[data-forest], td[data-trails], td[data-fog], td[data-tax]').forEach((cell) => {
                 cell.textContent = "Loading…";
                 cell.className = "status";
             });
@@ -1395,6 +1579,7 @@
                 await updateNearbyForest(origin);
                 await updateFogProneness(origin);
                 await updateTrailDensity(origin);
+                await updateTaxMultiplier(origin);
             } catch (error) {
                 searchStatus.textContent = "No results found. Try a more specific address.";
             } finally {
