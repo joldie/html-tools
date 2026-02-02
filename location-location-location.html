@@ -273,6 +273,78 @@
                 flex: 0 0 150px;
             }
         }
+
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+        }
+
+        .modal-overlay.hidden {
+            display: none;
+        }
+
+        .modal {
+            background: var(--color-card);
+            border-radius: 14px;
+            padding: 24px;
+            max-width: 400px;
+            width: 90%;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+        }
+
+        .modal h2 {
+            margin: 0 0 12px;
+            font-size: 1.2rem;
+        }
+
+        .modal p {
+            margin-bottom: 16px;
+            color: var(--color-text-muted);
+            font-size: 0.95rem;
+        }
+
+        .modal input[type="password"] {
+            width: 100%;
+            padding: 12px 14px;
+            border-radius: 10px;
+            border: 1px solid var(--color-border);
+            font-size: 1rem;
+            background: var(--color-card);
+            color: inherit;
+            box-sizing: border-box;
+            margin-bottom: 16px;
+        }
+
+        .modal-buttons {
+            display: flex;
+            gap: 10px;
+        }
+
+        .modal-buttons button {
+            flex: 1;
+        }
+
+        .btn-secondary {
+            background: var(--color-bg);
+            color: var(--color-text);
+            border: 1px solid var(--color-border);
+        }
+
+        .settings-link {
+            font-size: 0.85rem;
+            color: var(--color-text-muted);
+            cursor: pointer;
+            text-decoration: underline;
+        }
+
+        .settings-link:hover {
+            color: var(--color-primary);
+        }
     </style>
 </head>
 
@@ -311,7 +383,10 @@
         </section>
 
         <section class="card">
-            <h2>Travel times</h2>
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <h2 style="margin: 0;">Travel times</h2>
+                <span class="settings-link" id="api-key-settings">API key</span>
+            </div>
             <div class="table-wrapper">
                 <table>
                     <thead>
@@ -325,7 +400,7 @@
                     <tbody id="travel-times-body"></tbody>
                 </table>
             </div>
-            <p class="status status-right">Estimates only &#8594; Click the links for live data</p>
+            <p class="status status-right" id="travel-times-footer"></p>
         </section>
 
         <section class="card">
@@ -338,8 +413,81 @@
         </section>
     </main>
 
+    <div id="api-key-modal" class="modal-overlay hidden">
+        <div class="modal">
+            <h2>Google Maps API Key</h2>
+            <p>Enter your <span class="info-tooltip" role="button" tabindex="0" aria-label="More info">API key<span class="tooltip-text">Ask John for the key 😉</span></span> for accurate travel times. Without it, less accurate estimates will be shown.</p>
+            <input type="password" id="api-key-input" placeholder="Paste your API key here" />
+            <div class="modal-buttons">
+                <button type="button" class="btn-secondary" id="skip-api-key">Skip</button>
+                <button type="button" id="save-api-key">Save</button>
+            </div>
+        </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6.5.0/turf.min.js"></script>
     <script>
+        // API key management
+        const API_KEY_STORAGE_KEY = "googleDistanceMatrixApiKey";
+        const API_KEY_SKIPPED_KEY = "googleDistanceMatrixSkipped";
+
+        function getStoredApiKey() {
+            return localStorage.getItem(API_KEY_STORAGE_KEY) || null;
+        }
+
+        function isApiKeySkipped() {
+            return localStorage.getItem(API_KEY_SKIPPED_KEY) === "true";
+        }
+
+        function showApiKeyModal() {
+            document.getElementById("api-key-modal").classList.remove("hidden");
+        }
+
+        function hideApiKeyModal() {
+            document.getElementById("api-key-modal").classList.add("hidden");
+        }
+
+        function initApiKeyModal() {
+            const modal = document.getElementById("api-key-modal");
+            const input = document.getElementById("api-key-input");
+            const saveBtn = document.getElementById("save-api-key");
+            const skipBtn = document.getElementById("skip-api-key");
+
+            saveBtn.addEventListener("click", () => {
+                const key = input.value.trim();
+                if (key) {
+                    localStorage.setItem(API_KEY_STORAGE_KEY, key);
+                    localStorage.removeItem(API_KEY_SKIPPED_KEY);
+                    hideApiKeyModal();
+                    // Refresh travel times with new key
+                    if (lastSearchedOrigin) {
+                        updateTravelTimes(lastSearchedOrigin);
+                        updateNearbyGyms(lastSearchedOrigin);
+                    }
+                }
+            });
+
+            skipBtn.addEventListener("click", () => {
+                localStorage.setItem(API_KEY_SKIPPED_KEY, "true");
+                hideApiKeyModal();
+            });
+
+            input.addEventListener("keydown", (e) => {
+                if (e.key === "Enter") {
+                    saveBtn.click();
+                }
+            });
+        }
+
+        function clearApiKeySettings() {
+            localStorage.removeItem(API_KEY_STORAGE_KEY);
+            localStorage.removeItem(API_KEY_SKIPPED_KEY);
+            showApiKeyModal();
+        }
+
+        // Track last searched origin for refreshing after API key change
+        let lastSearchedOrigin = null;
+
         const addressInput = document.getElementById("address");
         const searchButton = document.getElementById("search-button");
         const searchStatus = document.getElementById("search-status");
@@ -594,6 +742,60 @@
             return (((days * 24 + hours) * 60 + minutes) * 60) + seconds;
         }
 
+        async function fetchGoogleDistanceMatrix(origin, destination, mode) {
+            // mode: "driving", "bicycling", or "transit"
+            const apiKey = getStoredApiKey();
+            if (!apiKey) {
+                throw new Error("No API key configured");
+            }
+            const params = new URLSearchParams({
+                origins: `${origin.lat},${origin.lng}`,
+                destinations: `${destination.lat},${destination.lng}`,
+                mode: mode,
+                key: apiKey,
+            });
+            const url = `https://maps.googleapis.com/maps/api/distancematrix/json?${params.toString()}`;
+            const response = await fetch(url);
+            if (!response.ok) {
+                throw new Error(`Google API HTTP ${response.status}`);
+            }
+            const data = await response.json();
+            if (data.status !== "OK") {
+                throw new Error(`Google API status: ${data.status}`);
+            }
+            const element = data.rows?.[0]?.elements?.[0];
+            if (!element || element.status !== "OK") {
+                throw new Error(`Google API element status: ${element?.status || "missing"}`);
+            }
+            return element.duration.value; // duration in seconds
+        }
+
+        async function fetchTravelTimeWithFallback(origin, destination, mode) {
+            // Returns { duration: number, isEstimate: boolean }
+            // mode: "driving", "bicycling", or "transit"
+            try {
+                const duration = await fetchGoogleDistanceMatrix(origin, destination, mode);
+                return { duration, isEstimate: false };
+            } catch (error) {
+                console.warn(`Google Distance Matrix failed for ${mode}:`, error.message);
+                // Fall back to OSM/Swiss Transit
+                try {
+                    if (mode === "transit") {
+                        const transitRaw = await fetchTransitDuration(origin, destination);
+                        const duration = parseTransitDuration(transitRaw);
+                        return { duration, isEstimate: true };
+                    } else {
+                        const profile = mode === "bicycling" ? "cycling" : "driving";
+                        const route = await fetchOsrmRoute(origin, destination, profile);
+                        return { duration: route.duration, isEstimate: true };
+                    }
+                } catch (fallbackError) {
+                    console.warn(`Fallback also failed for ${mode}:`, fallbackError.message);
+                    return { duration: NaN, isEstimate: true };
+                }
+            }
+        }
+
         const travelModes = [
             { id: "transit", label: "🚌", mapMode: "transit" },
             { id: "cycling", label: "🚲", mapMode: "bicycling" },
@@ -788,7 +990,21 @@
             }
         }
 
+        // Track whether any travel time used a fallback estimate
+        let anyTravelTimeEstimate = false;
+
+        function updateTravelTimesFooter() {
+            const footer = document.getElementById("travel-times-footer");
+            if (footer) {
+                footer.innerHTML = anyTravelTimeEstimate
+                    ? "* Estimate only &#8594; Click the links for live data"
+                    : "";
+            }
+        }
+
         async function updateTravelTimes(origin) {
+            anyTravelTimeEstimate = false;
+
             const rows = Array.from(travelTimesBody.querySelectorAll("tr[data-destination-id]"));
             rows.forEach((row) => {
                 const cells = row.querySelectorAll("td[data-mode]");
@@ -824,15 +1040,15 @@
                 }
 
                 try {
-                    const [transitRaw, cyclingRoute, drivingRoute] = await Promise.all([
-                        fetchTransitDuration(origin, resolved),
-                        fetchOsrmRoute(origin, resolved, "cycling"),
-                        fetchOsrmRoute(origin, resolved, "driving"),
+                    const [cyclingResult, transitResult, drivingResult] = await Promise.all([
+                        fetchTravelTimeWithFallback(origin, resolved, "bicycling"),
+                        fetchTravelTimeWithFallback(origin, resolved, "transit"),
+                        fetchTravelTimeWithFallback(origin, resolved, "driving"),
                     ]);
 
-                    const transitSeconds = parseTransitDuration(transitRaw);
-                    const cyclingSeconds = cyclingRoute.duration;
-                    const drivingSeconds = drivingRoute.duration;
+                    if (cyclingResult.isEstimate || transitResult.isEstimate || drivingResult.isEstimate) {
+                        anyTravelTimeEstimate = true;
+                    }
 
                     const originStr = `${origin.lat},${origin.lng}`;
                     const destinationStr = resolved.address;
@@ -842,11 +1058,11 @@
                         bikeCell.innerHTML = "";
                         bikeCell.className = "";
                         const bikeLink = document.createElement("a");
-                        bikeLink.className = `time-link ${getTimeColorClass(cyclingSeconds, "cycling")}`;
+                        bikeLink.className = `time-link ${getTimeColorClass(cyclingResult.duration, "cycling")}`;
                         bikeLink.href = buildDirectionsLink(originStr, destinationStr, "bicycling");
                         bikeLink.target = "_blank";
                         bikeLink.rel = "noopener";
-                        bikeLink.textContent = formatDuration(cyclingSeconds);
+                        bikeLink.textContent = formatDuration(cyclingResult.duration) + (cyclingResult.isEstimate ? "*" : "");
                         bikeCell.appendChild(bikeLink);
                     }
 
@@ -855,11 +1071,11 @@
                         transitCell.innerHTML = "";
                         transitCell.className = "";
                         const transitLink = document.createElement("a");
-                        transitLink.className = `time-link ${getTimeColorClass(transitSeconds, "transit")}`;
+                        transitLink.className = `time-link ${getTimeColorClass(transitResult.duration, "transit")}`;
                         transitLink.href = buildDirectionsLink(originStr, destinationStr, "transit");
                         transitLink.target = "_blank";
                         transitLink.rel = "noopener";
-                        transitLink.textContent = formatDuration(transitSeconds);
+                        transitLink.textContent = formatDuration(transitResult.duration) + (transitResult.isEstimate ? "*" : "");
                         transitCell.appendChild(transitLink);
                     }
 
@@ -868,11 +1084,11 @@
                         carCell.innerHTML = "";
                         carCell.className = "";
                         const carLink = document.createElement("a");
-                        carLink.className = `time-link ${getTimeColorClass(drivingSeconds, "driving")}`;
+                        carLink.className = `time-link ${getTimeColorClass(drivingResult.duration, "driving")}`;
                         carLink.href = buildDirectionsLink(originStr, destinationStr, "driving");
                         carLink.target = "_blank";
                         carLink.rel = "noopener";
-                        carLink.textContent = formatDuration(drivingSeconds);
+                        carLink.textContent = formatDuration(drivingResult.duration) + (drivingResult.isEstimate ? "*" : "");
                         carCell.appendChild(carLink);
                     }
                 } catch (error) {
@@ -884,6 +1100,8 @@
                     });
                 }
             }
+
+            updateTravelTimesFooter();
         }
 
         // --- Nearby climbing gyms ---
@@ -965,26 +1183,27 @@
                 const originStr = `${origin.lat},${origin.lng}`;
                 const destinationStr = closestGym.gym.address;
 
-                const [transitRaw, cyclingRoute, drivingRoute] = await Promise.all([
-                    fetchTransitDuration(origin, closestGym.gym),
-                    fetchOsrmRoute(origin, closestGym.gym, "cycling"),
-                    fetchOsrmRoute(origin, closestGym.gym, "driving"),
+                const [cyclingResult, transitResult, drivingResult] = await Promise.all([
+                    fetchTravelTimeWithFallback(origin, closestGym.gym, "bicycling"),
+                    fetchTravelTimeWithFallback(origin, closestGym.gym, "transit"),
+                    fetchTravelTimeWithFallback(origin, closestGym.gym, "driving"),
                 ]);
 
-                const transitSeconds = parseTransitDuration(transitRaw);
-                const cyclingSeconds = cyclingRoute.duration;
-                const drivingSeconds = drivingRoute.duration;
+                if (cyclingResult.isEstimate || transitResult.isEstimate || drivingResult.isEstimate) {
+                    anyTravelTimeEstimate = true;
+                    updateTravelTimesFooter();
+                }
 
                 // Bike cell
                 if (gymBikeCell) {
                     gymBikeCell.innerHTML = "";
                     gymBikeCell.className = "";
                     const bikeLink = document.createElement("a");
-                    bikeLink.className = `time-link ${getTimeColorClass(cyclingSeconds, "cycling")}`;
+                    bikeLink.className = `time-link ${getTimeColorClass(cyclingResult.duration, "cycling")}`;
                     bikeLink.href = buildDirectionsLink(originStr, destinationStr, "bicycling");
                     bikeLink.target = "_blank";
                     bikeLink.rel = "noopener";
-                    bikeLink.textContent = formatDuration(cyclingSeconds);
+                    bikeLink.textContent = formatDuration(cyclingResult.duration) + (cyclingResult.isEstimate ? "*" : "");
                     gymBikeCell.appendChild(bikeLink);
                 }
 
@@ -993,11 +1212,11 @@
                     gymTransitCell.innerHTML = "";
                     gymTransitCell.className = "";
                     const transitLink = document.createElement("a");
-                    transitLink.className = `time-link ${getTimeColorClass(transitSeconds, "transit")}`;
+                    transitLink.className = `time-link ${getTimeColorClass(transitResult.duration, "transit")}`;
                     transitLink.href = buildDirectionsLink(originStr, destinationStr, "transit");
                     transitLink.target = "_blank";
                     transitLink.rel = "noopener";
-                    transitLink.textContent = formatDuration(transitSeconds);
+                    transitLink.textContent = formatDuration(transitResult.duration) + (transitResult.isEstimate ? "*" : "");
                     gymTransitCell.appendChild(transitLink);
                 }
 
@@ -1006,11 +1225,11 @@
                     gymCarCell.innerHTML = "";
                     gymCarCell.className = "";
                     const carLink = document.createElement("a");
-                    carLink.className = `time-link ${getTimeColorClass(drivingSeconds, "driving")}`;
+                    carLink.className = `time-link ${getTimeColorClass(drivingResult.duration, "driving")}`;
                     carLink.href = buildDirectionsLink(originStr, destinationStr, "driving");
                     carLink.target = "_blank";
                     carLink.rel = "noopener";
-                    carLink.textContent = formatDuration(drivingSeconds);
+                    carLink.textContent = formatDuration(drivingResult.duration) + (drivingResult.isEstimate ? "*" : "");
                     gymCarCell.appendChild(carLink);
                 }
 
@@ -1601,6 +1820,7 @@
             try {
                 const result = await geocode(query);
                 const origin = { lat: result.lat, lng: result.lng };
+                lastSearchedOrigin = origin;
                 // Prefer embedding by coordinates to show the location pin only
                 mapFrame.src = buildGoogleMapEmbed(result.label, result.lat, result.lng);
                 document.getElementById("osm-link").href = buildOsmLink(result.lat, result.lng);
@@ -1646,6 +1866,19 @@
                 el.classList.remove("active");
             });
         });
+
+        // Initialize API key modal
+        initApiKeyModal();
+
+        // Settings link to change API key
+        document.getElementById("api-key-settings").addEventListener("click", () => {
+            clearApiKeySettings();
+        });
+
+        // Show API key modal if no key and not skipped
+        if (!getStoredApiKey() && !isApiKeySkipped()) {
+            showApiKeyModal();
+        }
 
         // Load default address on page load
         addressInput.value = "Freilagerstrasse 99, 8047 Zürich";
