@@ -59,11 +59,36 @@
         input[type="text"] {
             flex: 1;
             padding: 12px 14px;
+            padding-right: 36px;
             border-radius: 10px;
             border: 1px solid var(--color-border);
             font-size: 1rem;
             background: var(--color-card);
             color: inherit;
+        }
+
+        .input-wrapper {
+            position: relative;
+            flex: 1;
+            display: flex;
+        }
+
+        #clear-button {
+            position: absolute;
+            right: 8px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            color: var(--color-text-muted);
+            font-size: 1.3rem;
+            cursor: pointer;
+            padding: 4px 8px;
+            line-height: 1;
+        }
+
+        #clear-button:hover {
+            color: var(--color-text);
         }
 
         button {
@@ -260,7 +285,10 @@
         <section class="card">
             <h2>Address</h2>
             <div class="row">
-                <input id="address" type="text" placeholder="e.g. Freilagerstrasse 99, 8047 Zürich" />
+                <div class="input-wrapper">
+                    <input id="address" type="text" placeholder="e.g. Freilagerstrasse 99, 8047 Zürich" />
+                    <button id="clear-button" type="button" aria-label="Clear input">&times;</button>
+                </div>
                 <button id="search-button" aria-label="Search for address">Search</button>
             </div>
             <p class="status" id="search-status">Enter an address to begin.</p>
@@ -1589,6 +1617,11 @@
 
         searchButton.addEventListener("click", () => {
             handleSearch();
+        });
+
+        document.getElementById("clear-button").addEventListener("click", () => {
+            addressInput.value = "";
+            addressInput.focus();
         });
 
         addressInput.addEventListener("keydown", (event) => {
