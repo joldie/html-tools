@@ -337,17 +337,6 @@
             border: 1px solid var(--color-border);
         }
 
-        .settings-link {
-            font-size: 0.85rem;
-            color: var(--color-text-muted);
-            cursor: pointer;
-            text-decoration: underline;
-        }
-
-        .settings-link:hover {
-            color: var(--color-primary);
-        }
-
         .page-footer {
             max-width: 720px;
             margin: 0 auto;
@@ -361,10 +350,16 @@
             color: var(--color-primary);
         }
 
-        .clear-cache-btn {
-            position: fixed;
-            bottom: 16px;
-            right: 16px;
+        .action-buttons {
+            max-width: 720px;
+            margin: 0 auto 24px;
+            padding: 0 16px;
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+        }
+
+        .action-btn {
             padding: 8px 12px;
             font-size: 0.75rem;
             background: var(--color-bg);
@@ -374,10 +369,9 @@
             cursor: pointer;
             opacity: 0.7;
             transition: opacity 0.2s, background 0.2s;
-            z-index: 50;
         }
 
-        .clear-cache-btn:hover {
+        .action-btn:hover {
             opacity: 1;
             background: var(--color-card);
         }
@@ -419,10 +413,7 @@
         </section>
 
         <section class="card">
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-                <h2 style="margin: 0;">Travel times</h2>
-                <span class="settings-link" id="api-key-settings">API key</span>
-            </div>
+            <h2>Travel times</h2>
             <div class="table-wrapper">
                 <table>
                     <thead>
@@ -450,13 +441,16 @@
         </section>
     </main>
 
+    <div class="action-buttons">
+        <button id="api-key-settings" class="action-btn" title="Configure Google Maps API key">API key</button>
+        <button id="clear-cache-btn" class="action-btn" title="Clear cached data and API key">Clear cache</button>
+    </div>
+
     <footer class="page-footer">
         <a href="https://joldie.github.io/html-tools/" target="_blank" rel="noopener">Home page</a> · Last updated:
         2026-02-02 · <a href="https://github.com/joldie/html-tools/blob/main/location-location-location.html"
             target="_blank" rel="noopener">Source code</a>
     </footer>
-
-    <button id="clear-cache-btn" class="clear-cache-btn" title="Clear cached data and API key">Clear cache</button>
 
     <div id="api-key-modal" class="modal-overlay hidden">
         <div class="modal">
