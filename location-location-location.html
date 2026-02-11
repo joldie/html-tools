@@ -2351,13 +2351,16 @@
                     schweizLink.href = buildSchweizmobilLink(result.lat, result.lng);
                 }
                 searchStatus.textContent = query;
-                await updateTravelTimes(origin);
-                await updateNearbyGyms(origin);
-                await updateNearbySupermarket(origin);
-                await updateNearbyForest(origin);
-                await updateFogProneness(origin);
-                await updateTrailDensity(origin);
-                await updateTaxMultiplier(origin);
+                // Run all updates in parallel - they are independent of each other
+                await Promise.all([
+                    updateTravelTimes(origin),
+                    updateNearbyGyms(origin),
+                    updateNearbySupermarket(origin),
+                    updateNearbyForest(origin),
+                    updateFogProneness(origin),
+                    updateTrailDensity(origin),
+                    updateTaxMultiplier(origin),
+                ]);
             } catch (error) {
                 searchStatus.textContent = "No results found. Try a more specific address.";
             } finally {
