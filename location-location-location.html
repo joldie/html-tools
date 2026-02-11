@@ -447,10 +447,22 @@
     </div>
 
     <footer class="page-footer">
-        <a href="https://joldie.github.io/html-tools/" target="_blank" rel="noopener">Home page</a> · Last updated:
-        2026-02-11 · <a href="https://github.com/joldie/html-tools/blob/main/location-location-location.html"
+        <a href="https://joldie.github.io/html-tools/" target="_blank" rel="noopener">Home page</a> ·
+        Last updated: <span id="last-updated">2026-02-11</span> ·
+        <a href="https://github.com/joldie/html-tools/blob/main/location-location-location.html"
             target="_blank" rel="noopener">Source code</a>
     </footer>
+    <script>
+        // Fetch last commit date from GitHub API, fallback to hardcoded date on failure
+        fetch("https://api.github.com/repos/joldie/html-tools/commits?path=location-location-location.html&per_page=1")
+            .then(r => r.ok ? r.json() : Promise.reject())
+            .then(commits => {
+                if (commits?.[0]?.commit?.author?.date) {
+                    document.getElementById("last-updated").textContent = commits[0].commit.author.date.slice(0, 10);
+                }
+            })
+            .catch(() => {}); // Keep fallback date on error
+    </script>
 
     <div id="api-key-modal" class="modal-overlay hidden">
         <div class="modal">
