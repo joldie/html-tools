@@ -1262,9 +1262,17 @@
         function updateTravelTimesFooter() {
             const footer = document.getElementById("travel-times-footer");
             if (footer) {
-                footer.innerHTML = anyTravelTimeEstimate
-                    ? "* Estimate only &#8594; Click the link for live data"
-                    : "";
+                if (!anyTravelTimeEstimate) {
+                    footer.innerHTML = "";
+                } else if (!getStoredApiKey()) {
+                    footer.innerHTML = '* Estimate only &#8594; <a href="#" id="footer-api-key-link">Set API key</a> for live data';
+                    document.getElementById("footer-api-key-link").addEventListener("click", (e) => {
+                        e.preventDefault();
+                        clearApiKeySettings();
+                    });
+                } else {
+                    footer.innerHTML = "* Estimate only &#8594; Click the link for live data";
+                }
             }
         }
 
