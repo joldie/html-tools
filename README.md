@@ -10,4 +10,3 @@ Inspired by [Simon Willison](https://github.com/simonw/tools).
 - [html-to-markdown](html-to-markdown.html)
 - [mortgage-cost-calculator](mortgage-cost-calculator.html)
 - [location-location-location](location-location-location.html)
-- [jigsaw-solver](jigsaw-solver.html)
