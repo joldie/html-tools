@@ -360,11 +360,11 @@
     // SWAP THIS OBJECT OUT TO USE A DIFFERENT MODEL PROVIDER
     // ─────────────────────────────────────────────────────────────────────────
     const llmProvider = {
-      name: 'Gemini 2.0 Flash via Google AI Studio',
+      name: 'Gemini 2.5 Flash via Google AI Studio',
 
       async analyze(imageBase64, mimeType, apiKey) {
         const url =
-          `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${encodeURIComponent(apiKey)}`;
+          `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(apiKey)}`;
 
         const body = {
           contents: [
