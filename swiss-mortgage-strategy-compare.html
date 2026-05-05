@@ -1,0 +1,1502 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <link rel="icon" href="data:,">
+    <title>Swiss Mortgage Strategy Compare</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <style>
+        :root {
+            color-scheme: light;
+            --bg: #f8fafc;
+            --card: #ffffff;
+            --text: #0f172a;
+            --muted: #64748b;
+            --accent: #2563eb;
+            --accent-soft: rgba(37, 99, 235, 0.1);
+            --border: #e2e8f0;
+            --warn-bg: #fef3c7;
+            --warn-border: #fcd34d;
+            --warn-text: #78350f;
+        }
+
+        * {
+            box-sizing: border-box;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        }
+
+        [hidden] {
+            display: none !important;
+        }
+
+        body {
+            margin: 0;
+            background: var(--bg);
+            color: var(--text);
+        }
+
+        header {
+            padding: 1.5rem 1rem 1rem;
+            text-align: center;
+        }
+
+        header h1 {
+            margin: 0 0 0.4rem;
+            font-size: 1.6rem;
+        }
+
+        header p {
+            margin: 0;
+            color: var(--muted);
+            font-size: 0.95rem;
+        }
+
+        main {
+            padding: 0 1rem 2rem;
+            max-width: 1180px;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            gap: 1.25rem;
+        }
+
+        section {
+            background: var(--card);
+            border-radius: 1rem;
+            padding: 1.2rem;
+            border: 1px solid var(--border);
+            box-shadow: 0 14px 32px rgba(15, 23, 42, 0.08);
+        }
+
+        section h2 {
+            margin: 0 0 0.75rem;
+            font-size: 1.2rem;
+        }
+
+        .grid {
+            display: grid;
+            gap: 0.75rem;
+        }
+
+        .grid.two {
+            grid-template-columns: 1fr;
+        }
+
+        .grid.three {
+            grid-template-columns: 1fr;
+        }
+
+        .grid.four {
+            grid-template-columns: 1fr;
+        }
+
+        @media (min-width: 720px) {
+            .grid.two {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+
+            .grid.three {
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+            }
+
+            .grid.four {
+                grid-template-columns: repeat(4, minmax(0, 1fr));
+            }
+        }
+
+        label {
+            display: block;
+            font-size: 0.85rem;
+            color: var(--muted);
+            margin-bottom: 0.3rem;
+        }
+
+        input,
+        select {
+            width: 100%;
+            padding: 0.6rem 0.7rem;
+            border-radius: 0.7rem;
+            border: 1px solid var(--border);
+            background: #fff;
+            font-size: 1rem;
+        }
+
+        input[readonly] {
+            background: #f1f5f9;
+            color: var(--muted);
+        }
+
+        input:focus,
+        select:focus {
+            outline: 2px solid var(--accent-soft);
+            border-color: var(--accent);
+        }
+
+        .hint {
+            margin-top: 0.3rem;
+            font-size: 0.75rem;
+            color: var(--muted);
+        }
+
+        .assumptions-banner {
+            background: var(--warn-bg);
+            border: 1px solid var(--warn-border);
+            color: var(--warn-text);
+            padding: 0.75rem 1rem;
+            border-radius: 0.8rem;
+            font-size: 0.85rem;
+            line-height: 1.4;
+        }
+
+        .assumptions-banner strong {
+            color: var(--warn-text);
+        }
+
+        .summary-grid {
+            display: grid;
+            gap: 0.75rem;
+            grid-template-columns: 1fr;
+        }
+
+        @media (min-width: 720px) {
+            .summary-grid {
+                grid-template-columns: repeat(4, minmax(0, 1fr));
+            }
+        }
+
+        .summary-card {
+            background: #f1f5f9;
+            border-radius: 0.9rem;
+            padding: 0.9rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+
+        .summary-card span {
+            font-size: 0.8rem;
+            color: var(--muted);
+        }
+
+        .summary-card strong {
+            font-size: 1.1rem;
+        }
+
+        .mode-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+
+        .mode-row label {
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            margin: 0;
+            padding: 0.55rem 0.9rem;
+            border: 1px solid var(--border);
+            border-radius: 999px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            color: var(--text);
+            background: #fff;
+        }
+
+        .mode-row label.active {
+            border-color: var(--accent);
+            background: var(--accent-soft);
+            color: var(--accent);
+            font-weight: 600;
+        }
+
+        .mode-row input[type="radio"] {
+            width: auto;
+            margin: 0;
+        }
+
+        .scenarios-grid {
+            display: grid;
+            gap: 0.9rem;
+            grid-template-columns: 1fr;
+        }
+
+        @media (min-width: 720px) {
+            .scenarios-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+        }
+
+        @media (min-width: 1100px) {
+            .scenarios-grid {
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+            }
+        }
+
+        .scenario-card {
+            background: #f8fafc;
+            border: 1px solid var(--border);
+            border-radius: 0.9rem;
+            padding: 0.9rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.6rem;
+        }
+
+        .scenario-card .scenario-header {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .scenario-card .scenario-header .swatch {
+            width: 0.9rem;
+            height: 0.9rem;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        .scenario-card .scenario-header input {
+            font-weight: 600;
+            font-size: 1rem;
+        }
+
+        .scenario-card .scenario-header .remove-btn {
+            border: 1px solid var(--border);
+            background: transparent;
+            color: var(--muted);
+            padding: 0.35rem 0.6rem;
+            border-radius: 0.6rem;
+            cursor: pointer;
+            font-size: 0.8rem;
+        }
+
+        .scenario-card .scenario-header .remove-btn:hover {
+            color: #dc2626;
+            border-color: #fca5a5;
+        }
+
+        .scenario-card .checkbox-row {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.85rem;
+            color: var(--text);
+        }
+
+        .scenario-card .checkbox-row input {
+            width: auto;
+        }
+
+        .add-btn-row {
+            margin-top: 0.75rem;
+            display: flex;
+            justify-content: center;
+        }
+
+        .add-btn {
+            border: 1px dashed var(--accent);
+            background: transparent;
+            color: var(--accent);
+            padding: 0.5rem 1.2rem;
+            border-radius: 999px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+
+        .add-btn:disabled {
+            color: var(--muted);
+            border-color: var(--border);
+            cursor: not-allowed;
+        }
+
+        .charts-stack {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .chart-card {
+            background: #f8fafc;
+            border-radius: 0.9rem;
+            padding: 0.75rem;
+            border: 1px solid var(--border);
+            height: 360px;
+        }
+
+        .chart-card h3 {
+            margin: 0 0 0.5rem;
+            font-size: 0.95rem;
+            color: var(--muted);
+            font-weight: 600;
+        }
+
+        .chart-card .chart-canvas-wrap {
+            position: relative;
+            height: calc(100% - 1.6rem);
+        }
+
+        .chart-card canvas {
+            width: 100% !important;
+            height: 100% !important;
+        }
+
+        .table-wrap {
+            overflow-x: auto;
+            border-radius: 0.8rem;
+            border: 1px solid var(--border);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+        }
+
+        th,
+        td {
+            padding: 0.6rem 0.5rem;
+            border-bottom: 1px solid var(--border);
+            text-align: right;
+            white-space: nowrap;
+        }
+
+        th:first-child,
+        td:first-child {
+            text-align: left;
+        }
+
+        th {
+            background: #f1f5f9;
+            font-weight: 600;
+            color: var(--muted);
+        }
+
+        .scenario-name-cell {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .scenario-name-cell .swatch {
+            width: 0.7rem;
+            height: 0.7rem;
+            border-radius: 50%;
+        }
+
+        .caveats {
+            font-size: 0.85rem;
+            color: var(--muted);
+            line-height: 1.5;
+        }
+
+        .caveats ul {
+            margin: 0.25rem 0 0;
+            padding-left: 1.2rem;
+        }
+
+        .status {
+            color: #dc2626;
+            font-size: 0.85rem;
+            min-height: 1rem;
+        }
+
+        .page-footer {
+            max-width: 1180px;
+            margin: 1.5rem auto 2rem;
+            padding: 0 1rem;
+            font-size: 0.75rem;
+            color: var(--muted);
+            text-align: center;
+        }
+
+        .page-footer a {
+            color: var(--accent);
+        }
+    </style>
+</head>
+
+<body>
+    <header>
+        <h1>Swiss Mortgage Strategy Compare</h1>
+        <p>Compare full amortisation vs partial amortisation + investing the difference</p>
+    </header>
+
+    <main>
+        <div class="assumptions-banner">
+            <strong>Simplified model.</strong> Ignores all taxes (income tax, Eigenmietwert, capital
+            gains, dividends), pillar 3a, inflation, property appreciation, maintenance/insurance/utilities,
+            and refinancing fees. Single mortgage tranche only (no 1st/2nd split). All amortisation is direct.
+        </div>
+
+        <section>
+            <h2>Property &amp; loan</h2>
+            <div class="grid four">
+                <div>
+                    <label for="propertyPrice">Property price (CHF)</label>
+                    <input id="propertyPrice" type="text" inputmode="decimal" value="1'500'000" />
+                </div>
+                <div>
+                    <label for="loanAmount">Loan amount (CHF)</label>
+                    <input id="loanAmount" type="text" inputmode="decimal" value="1'200'000" />
+                </div>
+                <div>
+                    <label for="ltvDisplay">LTV (read-only)</label>
+                    <input id="ltvDisplay" type="text" readonly value="80.0%" />
+                </div>
+                <div>
+                    <label for="horizonYears">Simulation horizon (years)</label>
+                    <input id="horizonYears" type="number" inputmode="numeric" min="1" max="50" step="1" value="25" />
+                </div>
+            </div>
+        </section>
+
+        <section>
+            <h2>Investment</h2>
+            <div class="grid three">
+                <div>
+                    <label for="expectedReturn">Expected return (% p.a.)</label>
+                    <input id="expectedReturn" type="number" inputmode="decimal" min="-10" max="50" step="0.1"
+                        value="5.0" />
+                </div>
+                <div>
+                    <label for="volatility">Volatility (% p.a. — 0 = deterministic)</label>
+                    <input id="volatility" type="number" inputmode="decimal" min="0" max="100" step="0.5" value="0" />
+                    <div class="hint" id="modeHint">Deterministic: single fixed return.</div>
+                </div>
+                <div>
+                    <label for="initialCash">Initial cash to invest (CHF, optional)</label>
+                    <input id="initialCash" type="text" inputmode="decimal" value="0" />
+                    <div class="hint">Lump sum at t=0, applied to all scenarios.</div>
+                </div>
+            </div>
+        </section>
+
+        <section>
+            <h2>Calculation mode</h2>
+            <div class="mode-row" id="modeRow">
+                <label data-mode="free" class="active">
+                    <input type="radio" name="calcMode" value="free" checked />
+                    Free inputs (set monthly amortisation)
+                </label>
+                <label data-mode="budget">
+                    <input type="radio" name="calcMode" value="budget" />
+                    Fixed monthly budget
+                </label>
+                <label data-mode="goal">
+                    <input type="radio" name="calcMode" value="goal" />
+                    Fixed amortisation goal
+                </label>
+            </div>
+            <p class="hint" id="modeDescription"></p>
+        </section>
+
+        <section>
+            <h2>Scenarios</h2>
+            <div class="scenarios-grid" id="scenariosGrid"></div>
+            <div class="add-btn-row">
+                <button type="button" class="add-btn" id="addScenarioBtn">+ Add scenario</button>
+            </div>
+            <div class="status" id="statusMsg"></div>
+        </section>
+
+        <section>
+            <h2>Headline net worth at end of horizon</h2>
+            <div class="summary-grid" id="headlineGrid"></div>
+        </section>
+
+        <section>
+            <h2>Charts</h2>
+            <div class="charts-stack">
+                <div class="chart-card">
+                    <h3>Net worth over time (property − loan + investments)</h3>
+                    <div class="chart-canvas-wrap"><canvas id="netWorthChart"></canvas></div>
+                </div>
+                <div class="chart-card">
+                    <h3>Outstanding loan balance</h3>
+                    <div class="chart-canvas-wrap"><canvas id="loanChart"></canvas></div>
+                </div>
+                <div class="chart-card">
+                    <h3>Investment portfolio value</h3>
+                    <div class="chart-canvas-wrap"><canvas id="investChart"></canvas></div>
+                </div>
+                <div class="chart-card">
+                    <h3>Monthly outgoings (interest + amortisation)</h3>
+                    <div class="chart-canvas-wrap"><canvas id="outgoingsChart"></canvas></div>
+                </div>
+                <div class="chart-card">
+                    <h3>Cumulative interest paid</h3>
+                    <div class="chart-canvas-wrap"><canvas id="interestChart"></canvas></div>
+                </div>
+            </div>
+        </section>
+
+        <section>
+            <h2>Summary table</h2>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Scenario</th>
+                            <th>Total interest</th>
+                            <th>Total amortisation</th>
+                            <th>Final loan</th>
+                            <th>Final investments</th>
+                            <th>Final net worth</th>
+                            <th title="Investment return at which this scenario's final net worth equals the most-amortising scenario's. Solved deterministically; '—' if outside [-5%, 30%] or this is itself the most-amortising scenario.">Break-even return</th>
+                        </tr>
+                    </thead>
+                    <tbody id="summaryBody"></tbody>
+                </table>
+            </div>
+            <p class="hint">Median values shown for Monte Carlo. Hover the "Break-even return" header for an explanation.</p>
+        </section>
+
+        <section>
+            <h2>Caveats</h2>
+            <div class="caveats">
+                This tool intentionally ignores many real-world factors. Use it as a directional comparison, not a financial recommendation.
+                <ul>
+                    <li>No taxes (income, Eigenmietwert, capital gains, dividend, withholding).</li>
+                    <li>No pillar 3a contributions or indirect amortisation.</li>
+                    <li>No inflation; all values are in nominal CHF.</li>
+                    <li>No property appreciation or depreciation; property value held constant.</li>
+                    <li>No maintenance, insurance, utilities, or vacancy costs.</li>
+                    <li>No refinancing or transaction fees at renewal.</li>
+                    <li>Single tranche only (no 1st/2nd mortgage split, no LTV-tier rate differences).</li>
+                    <li>Amortisation is direct; balance is reduced each month.</li>
+                    <li>Renewal: at the end of the fixed-rate term the loan rolls over at the user-specified renewal rate for the remainder of the horizon.</li>
+                    <li>Monte Carlo uses geometric Brownian motion with a deterministic seed derived from the inputs, so results are reproducible across re-renders.</li>
+                </ul>
+            </div>
+        </section>
+    </main>
+
+    <footer class="page-footer">
+        <a href="https://joldie.github.io/html-tools/" target="_blank" rel="noopener">Home page</a> · Last updated: 2026-05-05 · <a href="https://github.com/joldie/html-tools/blob/main/swiss-mortgage-strategy-compare.html" target="_blank" rel="noopener">Source code</a>
+    </footer>
+
+    <script>
+        const currencyFormatter = new Intl.NumberFormat("de-CH", {
+            style: "currency",
+            currency: "CHF",
+            maximumFractionDigits: 0
+        });
+        const numberFormatter = new Intl.NumberFormat("de-CH", {
+            maximumFractionDigits: 0
+        });
+        const percentFormatter = new Intl.NumberFormat("en-CH", {
+            style: "percent",
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        });
+
+        const SCENARIO_COLORS = ["#2563eb", "#16a34a", "#f97316"];
+        const MIN_SCENARIOS = 2;
+        const MAX_SCENARIOS = 3;
+        const TERM_OPTIONS = [5, 10, 15];
+
+        const MODE_DESCRIPTIONS = {
+            free: "You set the monthly amortisation amount per scenario. Tool computes monthly outgoings and end-state.",
+            budget: "You set a max monthly housing budget per scenario. Tool solves for the amortisation that fits within (budget − interest), routing the saved cash to investments via the invest-the-difference toggle.",
+            goal: "You set a target remaining loan at the end of the simulation horizon per scenario. Tool computes the constant monthly amortisation needed to reach it (linear payoff)."
+        };
+
+        const MODE_INPUT_DEFS = {
+            free: { label: "Monthly amortisation (CHF)", defaultValue: 1500 },
+            budget: { label: "Max monthly housing budget (CHF)", defaultValue: 4500 },
+            goal: { label: "Target remaining loan at end (CHF)", defaultValue: 600000 }
+        };
+
+        let currentMode = "free";
+
+        const defaultScenarios = [
+            {
+                id: 1,
+                name: "15y full amortisation",
+                termYears: 15,
+                initialRate: 1.8,
+                renewalRate: 2.0,
+                modeValues: { free: 3333, budget: 6000, goal: 0 },
+                investDifference: false
+            },
+            {
+                id: 2,
+                name: "10y partial + invest",
+                termYears: 10,
+                initialRate: 1.5,
+                renewalRate: 2.0,
+                modeValues: { free: 833, budget: 4500, goal: 800000 },
+                investDifference: true
+            }
+        ];
+
+        let scenarios = defaultScenarios.map((s) => ({
+            ...s,
+            modeValues: { ...s.modeValues }
+        }));
+        let nextScenarioId = 3;
+
+        const els = {
+            propertyPrice: document.getElementById("propertyPrice"),
+            loanAmount: document.getElementById("loanAmount"),
+            ltvDisplay: document.getElementById("ltvDisplay"),
+            horizonYears: document.getElementById("horizonYears"),
+            expectedReturn: document.getElementById("expectedReturn"),
+            volatility: document.getElementById("volatility"),
+            initialCash: document.getElementById("initialCash"),
+            modeRow: document.getElementById("modeRow"),
+            modeDescription: document.getElementById("modeDescription"),
+            modeHint: document.getElementById("modeHint"),
+            scenariosGrid: document.getElementById("scenariosGrid"),
+            addScenarioBtn: document.getElementById("addScenarioBtn"),
+            statusMsg: document.getElementById("statusMsg"),
+            headlineGrid: document.getElementById("headlineGrid"),
+            summaryBody: document.getElementById("summaryBody")
+        };
+
+        const charts = {
+            netWorth: null,
+            loan: null,
+            invest: null,
+            outgoings: null,
+            interest: null
+        };
+
+        // ---------- Number parsing / formatting ----------
+
+        function parseCHF(str) {
+            if (str == null) return NaN;
+            const cleaned = String(str).replace(/['\s]/g, "").replace(",", ".");
+            if (cleaned === "" || cleaned === "-") return NaN;
+            const n = Number(cleaned);
+            return Number.isFinite(n) ? n : NaN;
+        }
+
+        function formatCHFInputValue(num) {
+            if (!Number.isFinite(num)) return "";
+            return numberFormatter.format(Math.round(num));
+        }
+
+        function formatCurrency(value) {
+            return currencyFormatter.format(Math.round(value || 0));
+        }
+
+        function formatPercent(value) {
+            if (!Number.isFinite(value)) return "—";
+            return percentFormatter.format(value);
+        }
+
+        function attachCHFFormatter(input) {
+            input.addEventListener("blur", () => {
+                const v = parseCHF(input.value);
+                if (Number.isFinite(v)) input.value = formatCHFInputValue(v);
+            });
+        }
+
+        attachCHFFormatter(els.propertyPrice);
+        attachCHFFormatter(els.loanAmount);
+        attachCHFFormatter(els.initialCash);
+
+        // ---------- Seeded PRNG (mulberry32) ----------
+
+        function hashInputs(seedString) {
+            let h = 0x811c9dc5;
+            for (let i = 0; i < seedString.length; i++) {
+                h ^= seedString.charCodeAt(i);
+                h = Math.imul(h, 0x01000193) >>> 0;
+            }
+            return h >>> 0;
+        }
+
+        function mulberry32(seed) {
+            let s = seed >>> 0;
+            return function () {
+                s = (s + 0x6D2B79F5) >>> 0;
+                let t = s;
+                t = Math.imul(t ^ (t >>> 15), t | 1);
+                t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+                return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+            };
+        }
+
+        function randn(rng) {
+            // Box-Muller
+            let u = 0, v = 0;
+            while (u === 0) u = rng();
+            while (v === 0) v = rng();
+            return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+        }
+
+        // ---------- Mortgage simulation ----------
+
+        function computeAmortPerMonth(scenario, mode, loan, horizonMonths, firstMonthInterest, postRenewalInterestEstimate) {
+            const v = scenario.modeValues[mode];
+            if (mode === "free") {
+                return Math.max(0, v || 0);
+            }
+            if (mode === "budget") {
+                // Use the larger of (initial-period interest, post-renewal interest estimate) to ensure
+                // the budget is respected throughout. We pick a single constant amort = budget - max(interest)
+                // so that monthly outgoings never exceed the budget.
+                const refInterest = Math.max(firstMonthInterest, postRenewalInterestEstimate);
+                return Math.max(0, (v || 0) - refInterest);
+            }
+            if (mode === "goal") {
+                const target = Math.max(0, v || 0);
+                return Math.max(0, (loan - target) / horizonMonths);
+            }
+            return 0;
+        }
+
+        function simulateMortgage(scenario, mode, loan, horizonMonths) {
+            const initRate = (scenario.initialRate || 0) / 100;
+            const renRate = (scenario.renewalRate || 0) / 100;
+            const termMonths = scenario.termYears * 12;
+
+            // First-month interest at initial rate
+            const firstMonthInterest = loan * initRate / 12;
+            // Estimate of interest at start of renewal: at month termMonths, balance has reduced by amort*term.
+            // We'll iterate twice: first pass with naive amort, then with refined amort if budget mode.
+            let amort = computeAmortPerMonth(scenario, mode, loan, horizonMonths, firstMonthInterest, firstMonthInterest);
+            if (mode === "budget") {
+                // Refine: estimate balance at renewal using first-pass amort, then estimate post-renewal interest
+                const balAtRenewal = Math.max(0, loan - amort * Math.min(termMonths, horizonMonths));
+                const postRenewInterest = balAtRenewal * renRate / 12;
+                amort = computeAmortPerMonth(scenario, mode, loan, horizonMonths, firstMonthInterest, postRenewInterest);
+            }
+
+            const monthsArr = horizonMonths;
+            const balance = new Float64Array(monthsArr + 1);
+            const outgoing = new Float64Array(monthsArr);
+            const interestPerMonth = new Float64Array(monthsArr);
+            const amortPerMonth = new Float64Array(monthsArr);
+            balance[0] = loan;
+
+            let totalInterest = 0;
+            let totalAmort = 0;
+
+            for (let t = 0; t < monthsArr; t++) {
+                const rate = (t < termMonths ? initRate : renRate);
+                const monthlyRate = rate / 12;
+                const interest = balance[t] * monthlyRate;
+                let principalPaid = Math.min(amort, balance[t]);
+                if (principalPaid < 0) principalPaid = 0;
+                interestPerMonth[t] = interest;
+                amortPerMonth[t] = principalPaid;
+                outgoing[t] = interest + principalPaid;
+                balance[t + 1] = balance[t] - principalPaid;
+                totalInterest += interest;
+                totalAmort += principalPaid;
+            }
+
+            return {
+                balance, outgoing, interestPerMonth, amortPerMonth,
+                totalInterest, totalAmort,
+                amortPerMonthValue: amort
+            };
+        }
+
+        // ---------- Investment simulation ----------
+
+        function simulateInvestmentDeterministic(initialCash, contributions, expectedReturn) {
+            const months = contributions.length;
+            const monthlyGrowth = Math.pow(1 + expectedReturn, 1 / 12) - 1;
+            const out = new Float64Array(months + 1);
+            out[0] = initialCash;
+            for (let t = 0; t < months; t++) {
+                out[t + 1] = out[t] * (1 + monthlyGrowth) + contributions[t];
+            }
+            // Convert to time series indexed 0..months (we'll use monthly value as end-of-month)
+            return out;
+        }
+
+        function simulateInvestmentMonteCarlo(initialCash, contributions, expectedReturn, volatility, seed, numPaths) {
+            const months = contributions.length;
+            const mu = expectedReturn / 12;
+            const sigma = volatility / Math.sqrt(12);
+            const drift = mu - 0.5 * sigma * sigma;
+
+            const rng = mulberry32(seed);
+            const numPoints = months + 1;
+            // Storage of all paths is heavy; instead keep only per-month sorted percentile values.
+            // Strategy: per month, collect numPaths values, sort once at the end.
+            // Use a 2D buffer: months+1 columns, numPaths rows (typed arrays).
+            const buf = new Float64Array(numPoints * numPaths);
+
+            for (let p = 0; p < numPaths; p++) {
+                let val = initialCash;
+                buf[p] = val; // t=0
+                for (let t = 0; t < months; t++) {
+                    const z = randn(rng);
+                    const monthlyReturn = Math.exp(drift + sigma * z) - 1;
+                    val = val * (1 + monthlyReturn) + contributions[t];
+                    buf[(t + 1) * numPaths + p] = val;
+                }
+            }
+
+            const p10 = new Float64Array(numPoints);
+            const p50 = new Float64Array(numPoints);
+            const p90 = new Float64Array(numPoints);
+            const slice = new Float64Array(numPaths);
+            for (let t = 0; t < numPoints; t++) {
+                for (let p = 0; p < numPaths; p++) slice[p] = buf[t * numPaths + p];
+                slice.sort();
+                p10[t] = slice[Math.floor(0.1 * numPaths)];
+                p50[t] = slice[Math.floor(0.5 * numPaths)];
+                p90[t] = slice[Math.floor(0.9 * numPaths)];
+            }
+            return { p10, p50, p90 };
+        }
+
+        // ---------- Top-level engine ----------
+
+        function computeAll(inputs) {
+            const { loan, horizonYears, expectedReturn, volatility, initialCash, mode } = inputs;
+            const horizonMonths = horizonYears * 12;
+
+            // 1. Simulate mortgage for each scenario
+            const mortgages = scenarios.map((s) => simulateMortgage(s, mode, loan, horizonMonths));
+
+            // 2. Determine max monthly outgoing across scenarios
+            const maxOutgoing = new Float64Array(horizonMonths);
+            for (let t = 0; t < horizonMonths; t++) {
+                let m = 0;
+                for (let i = 0; i < mortgages.length; i++) {
+                    if (mortgages[i].outgoing[t] > m) m = mortgages[i].outgoing[t];
+                }
+                maxOutgoing[t] = m;
+            }
+
+            // 3. Build per-scenario investment contributions
+            const contributions = scenarios.map((s, i) => {
+                const c = new Float64Array(horizonMonths);
+                if (s.investDifference) {
+                    for (let t = 0; t < horizonMonths; t++) {
+                        c[t] = Math.max(0, maxOutgoing[t] - mortgages[i].outgoing[t]);
+                    }
+                }
+                return c;
+            });
+
+            // 4. Run investment simulation
+            const isMC = volatility > 0;
+            const seed = hashInputs(JSON.stringify({
+                loan, horizonYears, expectedReturn, volatility, initialCash, mode,
+                scenarios: scenarios.map((s) => ({
+                    n: s.name, t: s.termYears, ir: s.initialRate, rr: s.renewalRate,
+                    mv: s.modeValues, id: s.investDifference
+                }))
+            }));
+
+            const investments = scenarios.map((_, i) => {
+                if (isMC) {
+                    const mc = simulateInvestmentMonteCarlo(
+                        initialCash, contributions[i], expectedReturn, volatility, seed + i * 7919, 1000
+                    );
+                    return { kind: "mc", ...mc };
+                }
+                const det = simulateInvestmentDeterministic(initialCash, contributions[i], expectedReturn);
+                return { kind: "det", median: det };
+            });
+
+            // 5. Build net worth time series
+            const netWorth = scenarios.map((_, i) => {
+                const inv = investments[i];
+                const months = horizonMonths + 1;
+                const median = new Float64Array(months);
+                let lo = null, hi = null;
+                if (inv.kind === "mc") {
+                    lo = new Float64Array(months);
+                    hi = new Float64Array(months);
+                }
+                for (let t = 0; t < months; t++) {
+                    const equity = inputs.propertyPrice - mortgages[i].balance[t];
+                    if (inv.kind === "mc") {
+                        median[t] = equity + inv.p50[t];
+                        lo[t] = equity + inv.p10[t];
+                        hi[t] = equity + inv.p90[t];
+                    } else {
+                        median[t] = equity + inv.median[t];
+                    }
+                }
+                return { median, lo, hi };
+            });
+
+            return { mortgages, investments, netWorth, isMC, horizonMonths };
+        }
+
+        function computeBreakEven(scenarioIdx, inputs, results) {
+            // Find the most-amortising scenario by lowest final balance
+            const finalBalances = results.mortgages.map((m) => m.balance[m.balance.length - 1]);
+            let topIdx = 0;
+            for (let i = 1; i < finalBalances.length; i++) {
+                if (finalBalances[i] < finalBalances[topIdx] - 1) {
+                    topIdx = i;
+                } else if (Math.abs(finalBalances[i] - finalBalances[topIdx]) < 1) {
+                    if (results.mortgages[i].totalAmort > results.mortgages[topIdx].totalAmort) topIdx = i;
+                }
+            }
+            if (scenarioIdx === topIdx) return { value: NaN, isTop: true };
+
+            // Solve: find r such that finalNetWorth(scenarioIdx, r) == finalNetWorth(topIdx, r)
+            // Both depend on r only via investments.
+            // For deterministic, we can compute closed-form-ish via re-running deterministic invest sim.
+            // Use bisection on f(r) = nw_scenario(r) - nw_top(r).
+            // For both scenarios, contribution series is fixed (from mortgage outgoings), so:
+            // nw_i(r) = (price - balance_i_final) + invDet(initialCash, contrib_i, r).last
+            const horizonMonths = results.horizonMonths;
+            const contribTop = new Float64Array(horizonMonths);
+            const contribS = new Float64Array(horizonMonths);
+            // Recompute contributions same as in computeAll
+            const maxOutgoing = new Float64Array(horizonMonths);
+            for (let t = 0; t < horizonMonths; t++) {
+                let m = 0;
+                for (let i = 0; i < results.mortgages.length; i++) {
+                    if (results.mortgages[i].outgoing[t] > m) m = results.mortgages[i].outgoing[t];
+                }
+                maxOutgoing[t] = m;
+            }
+            const cFor = (idx) => {
+                const c = new Float64Array(horizonMonths);
+                if (scenarios[idx].investDifference) {
+                    for (let t = 0; t < horizonMonths; t++) {
+                        c[t] = Math.max(0, maxOutgoing[t] - results.mortgages[idx].outgoing[t]);
+                    }
+                }
+                return c;
+            };
+            const cTop = cFor(topIdx);
+            const cS = cFor(scenarioIdx);
+            const eqTop = inputs.propertyPrice - results.mortgages[topIdx].balance[horizonMonths];
+            const eqS = inputs.propertyPrice - results.mortgages[scenarioIdx].balance[horizonMonths];
+
+            const investFinal = (initialCash, contrib, r) => {
+                const monthlyGrowth = Math.pow(1 + r, 1 / 12) - 1;
+                let v = initialCash;
+                for (let t = 0; t < horizonMonths; t++) {
+                    v = v * (1 + monthlyGrowth) + contrib[t];
+                }
+                return v;
+            };
+
+            const f = (r) => {
+                const nwS = eqS + investFinal(inputs.initialCash, cS, r);
+                const nwTop = eqTop + investFinal(inputs.initialCash, cTop, r);
+                return nwS - nwTop;
+            };
+
+            let lo = -0.05, hi = 0.30;
+            const flo = f(lo), fhi = f(hi);
+            if (!Number.isFinite(flo) || !Number.isFinite(fhi)) return { value: NaN, isTop: false };
+            if (flo * fhi > 0) {
+                // Same sign at both ends — no crossing in range
+                return { value: NaN, isTop: false };
+            }
+            for (let i = 0; i < 60; i++) {
+                const mid = (lo + hi) / 2;
+                const fmid = f(mid);
+                if (Math.abs(fmid) < 1e-2 || (hi - lo) < 1e-7) return { value: mid, isTop: false };
+                if (fmid * flo < 0) {
+                    hi = mid;
+                } else {
+                    lo = mid;
+                }
+            }
+            return { value: (lo + hi) / 2, isTop: false };
+        }
+
+        // ---------- Rendering ----------
+
+        function renderScenarioCards() {
+            els.scenariosGrid.innerHTML = "";
+            scenarios.forEach((s, idx) => {
+                const card = document.createElement("div");
+                card.className = "scenario-card";
+                const color = SCENARIO_COLORS[idx] || "#64748b";
+                const modeDef = MODE_INPUT_DEFS[currentMode];
+                card.innerHTML = `
+                    <div class="scenario-header">
+                        <span class="swatch" style="background:${color}"></span>
+                        <input type="text" data-field="name" data-idx="${idx}" value="${escapeHtml(s.name)}" />
+                        ${scenarios.length > MIN_SCENARIOS ? `<button type="button" class="remove-btn" data-remove="${idx}">Remove</button>` : ""}
+                    </div>
+                    <div>
+                        <label>Fixed-rate term</label>
+                        <select data-field="termYears" data-idx="${idx}">
+                            ${TERM_OPTIONS.map((y) => `<option value="${y}" ${y === s.termYears ? "selected" : ""}>${y} years</option>`).join("")}
+                        </select>
+                    </div>
+                    <div>
+                        <label>Initial rate (% p.a.)</label>
+                        <input type="number" inputmode="decimal" min="0" max="20" step="0.01" data-field="initialRate" data-idx="${idx}" value="${s.initialRate}" />
+                    </div>
+                    <div>
+                        <label>Renewal rate (% p.a., post-term)</label>
+                        <input type="number" inputmode="decimal" min="0" max="20" step="0.01" data-field="renewalRate" data-idx="${idx}" value="${s.renewalRate}" />
+                    </div>
+                    <div>
+                        <label>${modeDef.label}</label>
+                        <input type="text" inputmode="decimal" data-field="modeValue" data-idx="${idx}" value="${formatCHFInputValue(s.modeValues[currentMode])}" />
+                    </div>
+                    <div class="checkbox-row">
+                        <input type="checkbox" data-field="investDifference" data-idx="${idx}" id="inv-${s.id}" ${s.investDifference ? "checked" : ""} />
+                        <label for="inv-${s.id}" style="margin:0; color:var(--text); font-size:0.85rem;">Invest the monthly difference vs most-expensive scenario</label>
+                    </div>
+                `;
+                els.scenariosGrid.appendChild(card);
+            });
+
+            els.addScenarioBtn.disabled = scenarios.length >= MAX_SCENARIOS;
+
+            // Wire up scenario inputs
+            els.scenariosGrid.querySelectorAll("[data-field]").forEach((el) => {
+                const handler = () => {
+                    const idx = Number(el.dataset.idx);
+                    const field = el.dataset.field;
+                    const s = scenarios[idx];
+                    if (!s) return;
+                    if (field === "name") {
+                        s.name = el.value;
+                    } else if (field === "termYears") {
+                        s.termYears = Number(el.value);
+                    } else if (field === "initialRate") {
+                        s.initialRate = Number(el.value);
+                    } else if (field === "renewalRate") {
+                        s.renewalRate = Number(el.value);
+                    } else if (field === "modeValue") {
+                        const v = parseCHF(el.value);
+                        if (Number.isFinite(v)) s.modeValues[currentMode] = v;
+                    } else if (field === "investDifference") {
+                        s.investDifference = el.checked;
+                    }
+                    scheduleRecompute();
+                };
+                el.addEventListener("input", handler);
+                el.addEventListener("change", handler);
+                if (el.dataset.field === "modeValue") {
+                    el.addEventListener("blur", () => {
+                        const idx = Number(el.dataset.idx);
+                        const s = scenarios[idx];
+                        if (s) el.value = formatCHFInputValue(s.modeValues[currentMode]);
+                    });
+                }
+            });
+
+            els.scenariosGrid.querySelectorAll("[data-remove]").forEach((btn) => {
+                btn.addEventListener("click", () => {
+                    const idx = Number(btn.dataset.remove);
+                    scenarios.splice(idx, 1);
+                    renderScenarioCards();
+                    scheduleRecompute();
+                });
+            });
+        }
+
+        function escapeHtml(str) {
+            return String(str).replace(/[&<>"']/g, (c) => ({
+                "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+            }[c]));
+        }
+
+        function setMode(newMode) {
+            currentMode = newMode;
+            els.modeRow.querySelectorAll("label").forEach((lbl) => {
+                lbl.classList.toggle("active", lbl.dataset.mode === newMode);
+            });
+            els.modeDescription.textContent = MODE_DESCRIPTIONS[newMode];
+            renderScenarioCards();
+        }
+
+        function addScenario() {
+            if (scenarios.length >= MAX_SCENARIOS) return;
+            const id = nextScenarioId++;
+            scenarios.push({
+                id,
+                name: `Scenario ${scenarios.length + 1}`,
+                termYears: 10,
+                initialRate: 1.7,
+                renewalRate: 2.0,
+                modeValues: { free: 1500, budget: 4500, goal: 600000 },
+                investDifference: true
+            });
+            renderScenarioCards();
+            scheduleRecompute();
+        }
+
+        function readGlobalInputs() {
+            const propertyPrice = parseCHF(els.propertyPrice.value);
+            const loan = parseCHF(els.loanAmount.value);
+            const horizonYears = Math.max(1, Math.min(50, Math.round(Number(els.horizonYears.value) || 25)));
+            const expectedReturn = (Number(els.expectedReturn.value) || 0) / 100;
+            const volatility = Math.max(0, (Number(els.volatility.value) || 0) / 100);
+            const initialCash = Math.max(0, parseCHF(els.initialCash.value) || 0);
+            return { propertyPrice, loan, horizonYears, expectedReturn, volatility, initialCash, mode: currentMode };
+        }
+
+        function updateLTV(inputs) {
+            if (Number.isFinite(inputs.propertyPrice) && inputs.propertyPrice > 0 && Number.isFinite(inputs.loan)) {
+                const ltv = inputs.loan / inputs.propertyPrice;
+                els.ltvDisplay.value = `${(ltv * 100).toFixed(1)}%`;
+            } else {
+                els.ltvDisplay.value = "—";
+            }
+        }
+
+        function validate(inputs) {
+            if (!Number.isFinite(inputs.propertyPrice) || inputs.propertyPrice <= 0) return "Enter a valid property price.";
+            if (!Number.isFinite(inputs.loan) || inputs.loan <= 0) return "Enter a valid loan amount.";
+            if (inputs.loan > inputs.propertyPrice) return "Loan amount exceeds property price.";
+            if (scenarios.length < MIN_SCENARIOS) return "Need at least 2 scenarios.";
+            for (const s of scenarios) {
+                if (!Number.isFinite(s.initialRate) || s.initialRate < 0) return `Scenario "${s.name}": invalid initial rate.`;
+                if (!Number.isFinite(s.renewalRate) || s.renewalRate < 0) return `Scenario "${s.name}": invalid renewal rate.`;
+            }
+            return "";
+        }
+
+        // ---------- Charts ----------
+
+        function destroyCharts() {
+            for (const k in charts) {
+                if (charts[k]) {
+                    charts[k].destroy();
+                    charts[k] = null;
+                }
+            }
+        }
+
+        function yearLabels(horizonYears) {
+            const months = horizonYears * 12;
+            const labels = new Array(months + 1);
+            for (let t = 0; t <= months; t++) {
+                labels[t] = (t / 12).toFixed(2);
+            }
+            return labels;
+        }
+
+        function thinSeries(arr, step) {
+            // Sample every `step` months for plotting (keeps charts snappy with long horizons).
+            if (step <= 1) return Array.from(arr);
+            const out = [];
+            for (let i = 0; i < arr.length; i += step) out.push(arr[i]);
+            if ((arr.length - 1) % step !== 0) out.push(arr[arr.length - 1]);
+            return out;
+        }
+
+        function thinLabels(horizonYears, step) {
+            const months = horizonYears * 12;
+            const out = [];
+            for (let i = 0; i <= months; i += step) out.push((i / 12).toFixed(2));
+            if (months % step !== 0) out.push((months / 12).toFixed(2));
+            return out;
+        }
+
+        function buildCharts(inputs, results) {
+            destroyCharts();
+            const horizonMonths = results.horizonMonths;
+            // Plot every 1 month if horizon <= 15y, else every 3 months
+            const step = horizonMonths > 180 ? 3 : 1;
+            const labels = thinLabels(inputs.horizonYears, step);
+            const labelsWithoutInitial = labels.slice(1); // for series of length horizonMonths (no t=0)
+
+            const yTicksK = { ticks: { callback: (v) => `${Math.round(v / 1000)}k` } };
+            const commonOptions = (titleText) => ({
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: { mode: "index", intersect: false },
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: "bottom",
+                        labels: {
+                            // Hide p10/p90 band entries from legend; keep only main lines
+                            filter: (item) => !/\((p10|p90)\)$/.test(item.text)
+                        }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            title: (items) => `Year ${items[0].label}`,
+                            label: (item) => `${item.dataset.label}: ${formatCurrency(item.parsed.y)}`
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        title: { display: true, text: "Years from start" },
+                        ticks: { maxTicksLimit: 12 }
+                    },
+                    y: yTicksK
+                },
+                animation: false
+            });
+
+            // 1. Net worth chart
+            const nwDatasets = [];
+            scenarios.forEach((s, i) => {
+                const color = SCENARIO_COLORS[i] || "#64748b";
+                if (results.isMC) {
+                    nwDatasets.push({
+                        label: `${s.name} (p10)`,
+                        data: thinSeries(results.netWorth[i].lo, step),
+                        borderColor: color + "55",
+                        backgroundColor: color + "22",
+                        borderDash: [4, 4],
+                        pointRadius: 0,
+                        fill: false,
+                        tension: 0.1
+                    });
+                    nwDatasets.push({
+                        label: `${s.name} (median)`,
+                        data: thinSeries(results.netWorth[i].median, step),
+                        borderColor: color,
+                        backgroundColor: color + "33",
+                        pointRadius: 0,
+                        fill: "-1",
+                        tension: 0.1
+                    });
+                    nwDatasets.push({
+                        label: `${s.name} (p90)`,
+                        data: thinSeries(results.netWorth[i].hi, step),
+                        borderColor: color + "55",
+                        backgroundColor: color + "22",
+                        borderDash: [4, 4],
+                        pointRadius: 0,
+                        fill: "-1",
+                        tension: 0.1
+                    });
+                } else {
+                    nwDatasets.push({
+                        label: s.name,
+                        data: thinSeries(results.netWorth[i].median, step),
+                        borderColor: color,
+                        backgroundColor: color + "22",
+                        pointRadius: 0,
+                        fill: false,
+                        tension: 0.1
+                    });
+                }
+            });
+            charts.netWorth = new Chart(document.getElementById("netWorthChart"), {
+                type: "line",
+                data: { labels, datasets: nwDatasets },
+                options: commonOptions("Net worth")
+            });
+
+            // 2. Loan balance chart
+            const loanDatasets = scenarios.map((s, i) => ({
+                label: s.name,
+                data: thinSeries(results.mortgages[i].balance, step),
+                borderColor: SCENARIO_COLORS[i] || "#64748b",
+                backgroundColor: (SCENARIO_COLORS[i] || "#64748b") + "22",
+                pointRadius: 0,
+                fill: false,
+                tension: 0.1
+            }));
+            charts.loan = new Chart(document.getElementById("loanChart"), {
+                type: "line",
+                data: { labels, datasets: loanDatasets },
+                options: commonOptions("Loan balance")
+            });
+
+            // 3. Investment chart
+            const invDatasets = [];
+            scenarios.forEach((s, i) => {
+                const color = SCENARIO_COLORS[i] || "#64748b";
+                const inv = results.investments[i];
+                if (inv.kind === "mc") {
+                    invDatasets.push({
+                        label: `${s.name} (p10)`,
+                        data: thinSeries(inv.p10, step),
+                        borderColor: color + "55",
+                        backgroundColor: color + "22",
+                        borderDash: [4, 4],
+                        pointRadius: 0,
+                        fill: false,
+                        tension: 0.1
+                    });
+                    invDatasets.push({
+                        label: `${s.name} (median)`,
+                        data: thinSeries(inv.p50, step),
+                        borderColor: color,
+                        backgroundColor: color + "33",
+                        pointRadius: 0,
+                        fill: "-1",
+                        tension: 0.1
+                    });
+                    invDatasets.push({
+                        label: `${s.name} (p90)`,
+                        data: thinSeries(inv.p90, step),
+                        borderColor: color + "55",
+                        backgroundColor: color + "22",
+                        borderDash: [4, 4],
+                        pointRadius: 0,
+                        fill: "-1",
+                        tension: 0.1
+                    });
+                } else {
+                    invDatasets.push({
+                        label: s.name,
+                        data: thinSeries(inv.median, step),
+                        borderColor: color,
+                        backgroundColor: color + "22",
+                        pointRadius: 0,
+                        fill: false,
+                        tension: 0.1
+                    });
+                }
+            });
+            charts.invest = new Chart(document.getElementById("investChart"), {
+                type: "line",
+                data: { labels, datasets: invDatasets },
+                options: commonOptions("Investments")
+            });
+
+            // 4. Monthly outgoings (length = horizonMonths, no t=0)
+            const outgoingsLabels = thinLabels(inputs.horizonYears, step).slice(1);
+            // Adjust: thin a length-horizonMonths series
+            const outgoingsDatasets = scenarios.map((s, i) => ({
+                label: s.name,
+                data: thinSeries(results.mortgages[i].outgoing, step),
+                borderColor: SCENARIO_COLORS[i] || "#64748b",
+                backgroundColor: (SCENARIO_COLORS[i] || "#64748b") + "22",
+                pointRadius: 0,
+                fill: false,
+                stepped: false,
+                tension: 0
+            }));
+            // Build labels for the horizonMonths series
+            const outLabels = (() => {
+                const months = inputs.horizonYears * 12;
+                const out = [];
+                for (let i = 0; i < months; i += step) out.push(((i + 1) / 12).toFixed(2));
+                if ((months - 1) % step !== 0) out.push((months / 12).toFixed(2));
+                return out;
+            })();
+            charts.outgoings = new Chart(document.getElementById("outgoingsChart"), {
+                type: "line",
+                data: { labels: outLabels, datasets: outgoingsDatasets },
+                options: commonOptions("Monthly outgoings")
+            });
+
+            // 5. Cumulative interest
+            const cumDatasets = scenarios.map((s, i) => {
+                const cum = new Float64Array(results.mortgages[i].interestPerMonth.length + 1);
+                cum[0] = 0;
+                let r = 0;
+                for (let t = 0; t < results.mortgages[i].interestPerMonth.length; t++) {
+                    r += results.mortgages[i].interestPerMonth[t];
+                    cum[t + 1] = r;
+                }
+                return {
+                    label: s.name,
+                    data: thinSeries(cum, step),
+                    borderColor: SCENARIO_COLORS[i] || "#64748b",
+                    backgroundColor: (SCENARIO_COLORS[i] || "#64748b") + "22",
+                    pointRadius: 0,
+                    fill: false,
+                    tension: 0.1
+                };
+            });
+            charts.interest = new Chart(document.getElementById("interestChart"), {
+                type: "line",
+                data: { labels, datasets: cumDatasets },
+                options: commonOptions("Cumulative interest")
+            });
+        }
+
+        function renderHeadline(results) {
+            els.headlineGrid.innerHTML = "";
+            scenarios.forEach((s, i) => {
+                const finalNW = results.netWorth[i].median[results.netWorth[i].median.length - 1];
+                const card = document.createElement("div");
+                card.className = "summary-card";
+                card.innerHTML = `
+                    <span><span style="display:inline-block;width:0.7rem;height:0.7rem;border-radius:50%;background:${SCENARIO_COLORS[i] || "#64748b"};margin-right:0.4rem;vertical-align:middle;"></span>${escapeHtml(s.name)}</span>
+                    <strong>${formatCurrency(finalNW)}</strong>
+                `;
+                els.headlineGrid.appendChild(card);
+            });
+        }
+
+        function renderSummaryTable(inputs, results) {
+            els.summaryBody.innerHTML = "";
+            scenarios.forEach((s, i) => {
+                const m = results.mortgages[i];
+                const inv = results.investments[i];
+                const finalLoan = m.balance[m.balance.length - 1];
+                const finalInv = inv.kind === "mc" ? inv.p50[inv.p50.length - 1] : inv.median[inv.median.length - 1];
+                const finalNW = inputs.propertyPrice - finalLoan + finalInv;
+                const be = computeBreakEven(i, inputs, results);
+                let beText;
+                if (be.isTop) beText = "— (most amortising)";
+                else if (!Number.isFinite(be.value)) beText = "—";
+                else beText = formatPercent(be.value);
+
+                const tr = document.createElement("tr");
+                tr.innerHTML = `
+                    <td><span class="scenario-name-cell"><span class="swatch" style="background:${SCENARIO_COLORS[i] || "#64748b"}"></span>${escapeHtml(s.name)}</span></td>
+                    <td>${formatCurrency(m.totalInterest)}</td>
+                    <td>${formatCurrency(m.totalAmort)}</td>
+                    <td>${formatCurrency(finalLoan)}</td>
+                    <td>${formatCurrency(finalInv)}</td>
+                    <td>${formatCurrency(finalNW)}</td>
+                    <td>${beText}</td>
+                `;
+                els.summaryBody.appendChild(tr);
+            });
+        }
+
+        // ---------- Recompute orchestration ----------
+
+        let recomputeTimer = null;
+        function scheduleRecompute() {
+            if (recomputeTimer) clearTimeout(recomputeTimer);
+            recomputeTimer = setTimeout(recompute, 150);
+        }
+
+        function recompute() {
+            els.statusMsg.textContent = "";
+            const inputs = readGlobalInputs();
+            updateLTV(inputs);
+            els.modeHint.textContent = inputs.volatility > 0
+                ? `Monte Carlo: 1000 paths, geometric Brownian motion (μ=${(inputs.expectedReturn * 100).toFixed(1)}%, σ=${(inputs.volatility * 100).toFixed(1)}%).`
+                : "Deterministic: single fixed return.";
+            const err = validate(inputs);
+            if (err) {
+                els.statusMsg.textContent = err;
+                return;
+            }
+            const results = computeAll(inputs);
+            renderHeadline(results);
+            renderSummaryTable(inputs, results);
+            buildCharts(inputs, results);
+        }
+
+        // ---------- Wire up global inputs ----------
+
+        [els.propertyPrice, els.loanAmount, els.horizonYears, els.expectedReturn, els.volatility, els.initialCash]
+            .forEach((el) => {
+                el.addEventListener("input", scheduleRecompute);
+                el.addEventListener("change", scheduleRecompute);
+            });
+
+        els.modeRow.querySelectorAll('input[name="calcMode"]').forEach((r) => {
+            r.addEventListener("change", () => {
+                setMode(r.value);
+                scheduleRecompute();
+            });
+        });
+
+        els.addScenarioBtn.addEventListener("click", addScenario);
+
+        // ---------- Initial render ----------
+
+        setMode(currentMode);
+        recompute();
+    </script>
+</body>
+
+</html>
