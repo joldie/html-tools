@@ -8,6 +8,7 @@ Inspired by [Simon Willison](https://github.com/simonw/tools).
 
 - [json-to-yaml](json-to-yaml.html)
 - [html-to-markdown](html-to-markdown.html)
+- [location-location-location](location-location-location.html)
 - [mortgage-cost-calculator](mortgage-cost-calculator.html)
 - [swiss-mortgage-strategy-compare](swiss-mortgage-strategy-compare.html)
-- [location-location-location](location-location-location.html)
+- [mortgage_vs_etf_strategy_comparison](mortgage_vs_etf_strategy_comparison.html)
