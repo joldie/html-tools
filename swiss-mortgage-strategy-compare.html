@@ -140,20 +140,6 @@
             color: var(--muted);
         }
 
-        .assumptions-banner {
-            background: var(--warn-bg);
-            border: 1px solid var(--warn-border);
-            color: var(--warn-text);
-            padding: 0.75rem 1rem;
-            border-radius: 0.8rem;
-            font-size: 0.85rem;
-            line-height: 1.4;
-        }
-
-        .assumptions-banner strong {
-            color: var(--warn-text);
-        }
-
         .summary-grid {
             display: grid;
             gap: 0.75rem;
@@ -421,16 +407,9 @@
 <body>
     <header>
         <h1>Swiss Mortgage Strategy Compare</h1>
-        <p>Compare full amortisation vs partial amortisation + investing the difference</p>
     </header>
 
     <main>
-        <div class="assumptions-banner">
-            <strong>Simplified model.</strong> Ignores all taxes (income tax, Eigenmietwert, capital
-            gains, dividends), pillar 3a, inflation, property appreciation, maintenance/insurance/utilities,
-            and refinancing fees. Single mortgage tranche only (no 1st/2nd split). All amortisation is direct.
-        </div>
-
         <section>
             <h2>Property &amp; loan</h2>
             <div class="grid four">
@@ -545,19 +524,23 @@
                             <th>Final loan</th>
                             <th>Final investments</th>
                             <th>Final net worth</th>
-                            <th title="Investment return at which this scenario's final net worth equals the most-amortising scenario's. Solved deterministically; '—' if outside [-5%, 30%] or this is itself the most-amortising scenario.">Break-even return</th>
+                            <th
+                                title="Investment return at which this scenario's final net worth equals the most-amortising scenario's. Solved deterministically; '—' if outside [-5%, 30%] or this is itself the most-amortising scenario.">
+                                Break-even return</th>
                         </tr>
                     </thead>
                     <tbody id="summaryBody"></tbody>
                 </table>
             </div>
-            <p class="hint">Median values shown for Monte Carlo. Hover the "Break-even return" header for an explanation.</p>
+            <p class="hint">Median values shown for Monte Carlo. Hover the "Break-even return" header for an
+                explanation.</p>
         </section>
 
         <section>
             <h2>Caveats</h2>
             <div class="caveats">
-                This tool intentionally ignores many real-world factors. Use it as a directional comparison, not a financial recommendation.
+                This tool intentionally ignores many real-world factors. Use it as a directional comparison, not a
+                financial recommendation.
                 <ul>
                     <li>No taxes (income, Eigenmietwert, capital gains, dividend, withholding).</li>
                     <li>No pillar 3a contributions or indirect amortisation.</li>
@@ -567,15 +550,19 @@
                     <li>No refinancing or transaction fees at renewal.</li>
                     <li>Single tranche only (no 1st/2nd mortgage split, no LTV-tier rate differences).</li>
                     <li>Amortisation is direct; balance is reduced each month.</li>
-                    <li>Renewal: at the end of the fixed-rate term the loan rolls over at the user-specified renewal rate for the remainder of the horizon.</li>
-                    <li>Monte Carlo uses geometric Brownian motion with a deterministic seed derived from the inputs, so results are reproducible across re-renders.</li>
+                    <li>Renewal: at the end of the fixed-rate term the loan rolls over at the user-specified renewal
+                        rate for the remainder of the horizon.</li>
+                    <li>Monte Carlo uses geometric Brownian motion with a deterministic seed derived from the inputs, so
+                        results are reproducible across re-renders.</li>
                 </ul>
             </div>
         </section>
     </main>
 
     <footer class="page-footer">
-        <a href="https://joldie.github.io/html-tools/" target="_blank" rel="noopener">Home page</a> · Last updated: 2026-05-05 · <a href="https://github.com/joldie/html-tools/blob/main/swiss-mortgage-strategy-compare.html" target="_blank" rel="noopener">Source code</a>
+        <a href="https://joldie.github.io/html-tools/" target="_blank" rel="noopener">Home page</a> · Last updated:
+        2026-05-06 · <a href="https://github.com/joldie/html-tools/blob/main/swiss-mortgage-strategy-compare.html"
+            target="_blank" rel="noopener">Source code</a>
     </footer>
 
     <script>
